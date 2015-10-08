@@ -670,6 +670,7 @@ def determineMTCurrTime(token, amtCheckBackwards):
             return currTime
     return -1
 
+#test test
 #Set 4:25
 
 #print determineMTCurrTime(genPasswordResetToken(),5000)
