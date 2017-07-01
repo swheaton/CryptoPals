@@ -166,16 +166,13 @@ def guessKeySizeFile(fileName):
 
 def solveVigenere(text): #solves repeating-key xor vigenere given hex string of cipher text
     keysize = guessKeySize(text)
-    print "\nkey size: ", keysize
 
     key = ''
     for startSpot in xrange(keysize):
         subText = "".join([text[ind] for ind in xrange(startSpot,len(text), keysize)])
         bestPair = singleXorDecrypt(subText.encode('hex'), False)
         key += bestPair.decodeByte
-    print "\nKEY: " + key + '\n==============================\n\n\n\n'
     out = repeatingKeyXor(text, key)
-    print out
     return (key, out)
 
 def solveVigenereFile(fileName):
@@ -184,7 +181,7 @@ def solveVigenereFile(fileName):
         hexText = b64ToHex(b64Text)
         return solveVigenere(hexText.decode('hex'))
         
-'''
+
 #Set 1:7
 from Crypto.Cipher import AES
 
@@ -194,7 +191,10 @@ def decryptAESNoPadding(message,key):
     return decrypted
 
 def decryptAES(message, key):
-    return checkAndStripPadding(decryptAESNoPadding(message,key))
+    return decryptAESNoPadding(message,key)
+
+    #TODO why checkAndStripPadding??
+    #return checkAndStripPadding(decryptAESNoPadding(message,key))
 
 def decryptAESFile(fileName, key):
     with open(fileName) as file:
@@ -212,13 +212,15 @@ def isEcbEncryptedCipher(hexText): #takes in hex text
     return False
 
 def findEcbEncryptedCipherFile(fileName):
+    encryptedCiphers = []
     with open(fileName) as file:
         idx = 0
         for line in file:
             if isEcbEncryptedCipher(line):
-                print str(idx) +': ' + line
+                encryptedCiphers.append(line)
             idx += 1
-
+    return encryptedCiphers
+'''
 #Set 2:9
 def pad(message, length): #pads message out to length number of bytes with pkcs #7 method
     diff = length - len(message)

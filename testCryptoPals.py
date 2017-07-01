@@ -47,8 +47,23 @@ class TestSet1(unittest.TestCase):
         self.assertEqual(CryptoStu.guessKeySizeFile("files/p6.txt"), 29)
         solved = CryptoStu.solveVigenereFile("files/p6.txt")
         self.assertEqual(solved[0], "Terminator X: Bring the noise")
-        self.assertNotEqual(solved[1].find("Play that funky music white boy"), -1) #Just searches for a particular lyric to make sure we at least decrypted some of it
+        #Just searches for a particular lyric to make sure we at least decrypted some of it
+        self.assertNotEqual(solved[1].find("Play that funky music white boy"), -1)
+        self.assertNotEqual(solved[1].find("VIP. Vanilla Ice yep, yep, I'm comin' hard like a rhino"), -1)
         #print solved[1] #Uncomment to print the whole decrypted text
+        
+    def test_challenge7(self):
+        decryptedFile = CryptoStu.decryptAESFile("files/p7.txt", "YELLOW SUBMARINE")
+        self.assertNotEqual(decryptedFile.find("Play that funky music white boy"), -1)
+        self.assertNotEqual(decryptedFile.find("I'm back and I'm ringin' the bell"), -1)
+        #print decryptedFile #Uncomment to print the whole decrypted text
+
+    def test_challenge9(self):
+        blah = 1
+        ecbEncryptedCiphers = CryptoStu.findEcbEncryptedCipherFile("files/p8.txt")
+        self.assertEqual(len(ecbEncryptedCiphers), 1)
+        #print ecbEncryptedCiphers #Uncomment to print the ciphers in the file that are encrypted with ecb
+
 
 if __name__ == '__main__':
     unittest.main()
