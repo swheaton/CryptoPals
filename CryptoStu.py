@@ -133,11 +133,11 @@ def repeatingKeyXorFile(fileName, key):
         return out
 
 #Set 1:6
-'''from bitstring import Bits
+import numpy as np
 def hammingDist(s1,s2): #computes hamming distance between two equal-length strings
-    bits1 = Bits(bytes=s1)
-    bits2 = Bits(bytes=s2)
-    return (bits1 ^ bits2).count(True)
+    assert(len(s1) == len(s2))
+    bitValues = (1 << np.arange(8))[:,None] #Just generates [1, 2, 4, 8, ... , 128]
+    return sum(np.count_nonzero((np.bitwise_xor(byte1, byte2) & bitValues) != 0) for (byte1, byte2) in zip(bytearray(s1), bytearray(s2)))
 
 def guessKeySize(text):
     lowestHamSum = sys.float_info.max
@@ -157,27 +157,34 @@ def guessKeySize(text):
 
         #hamSum = sum([hammingDist(text[startInd:(startInd+keysize)],text[(startInd+keysize):(startInd+keysize*2)])/keysize for startInd in xrange(0,keysize*3,keysize)])
     return keyGuess
+    
+def guessKeySizeFile(fileName):
+    with open(fileName) as file:
+        b64Text = "".join(file.readlines())
+        hexText = b64ToHex(b64Text)
+        return guessKeySize(hexText.decode('hex'))
 
-def solveVigenere(hexText): #solves repeating-key xor vigenere given hex string of cipher text
-    text = hexText.decode('hex')
+def solveVigenere(text): #solves repeating-key xor vigenere given hex string of cipher text
     keysize = guessKeySize(text)
+    print "\nkey size: ", keysize
 
     key = ''
     for startSpot in xrange(keysize):
         subText = "".join([text[ind] for ind in xrange(startSpot,len(text), keysize)])
         bestPair = singleXorDecrypt(subText.encode('hex'), False)
         key += bestPair.decodeByte
-    print "KEY: " + key + '\n==============================\n\n\n\n'
+    print "\nKEY: " + key + '\n==============================\n\n\n\n'
     out = repeatingKeyXor(text, key)
     print out
+    return (key, out)
 
 def solveVigenereFile(fileName):
     with open(fileName) as file:
         b64Text = "".join(file.readlines())
         hexText = b64ToHex(b64Text)
-        return solveVigenere(hexText)
+        return solveVigenere(hexText.decode('hex'))
         
-
+'''
 #Set 1:7
 from Crypto.Cipher import AES
 

@@ -42,7 +42,13 @@ class TestSet1(unittest.TestCase):
         self.assertEqual(CryptoStu.repeatingKeyXor(asciiText, "ICE").encode('hex'), encryptedText) #Encrypt
         self.assertEqual(CryptoStu.repeatingKeyXor(encryptedText.decode('hex'), "ICE"), asciiText) #Decrypt
 
-        
+    def test_challenge6(self):
+        self.assertEqual(CryptoStu.hammingDist("this is a test", "wokka wokka!!!"), 37)
+        self.assertEqual(CryptoStu.guessKeySizeFile("files/p6.txt"), 29)
+        solved = CryptoStu.solveVigenereFile("files/p6.txt")
+        self.assertEqual(solved[0], "Terminator X: Bring the noise")
+        self.assertNotEqual(solved[1].find("Play that funky music white boy"), -1) #Just searches for a particular lyric to make sure we at least decrypted some of it
+        #print solved[1] #Uncomment to print the whole decrypted text
 
 if __name__ == '__main__':
     unittest.main()
