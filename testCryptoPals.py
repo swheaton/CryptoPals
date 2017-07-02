@@ -104,9 +104,14 @@ class TestSet2(unittest.TestCase):
         
     def test_challenge11(self):
         #Try it 100 times, make sure it works
-        for i in range(0, 100):
+        for i in xrange(0, 100):
             oracleResult = CryptoStu.determineAESMode(CryptoStu.randomEcbCbcOracle, 16)
             self.assertEqual(oracleResult[0], oracleResult[1])
+            
+    def test_challenge12(self):
+        self.assertEqual(CryptoStu.discoverBlockSize(CryptoStu.fixedKeyEcbOracle), 16)
+        self.assertEqual(CryptoStu.determineAESMode(CryptoStu.fixedKeyEcbOracle)[1], 'ecb')
+        self.assertNotEqual(CryptoStu.byteEcbDecryptionNoPrefix().find("Rollin' in my 5.0\nWith my rag-top down so my hair can blow\nThe girlies on standby waving just to say hi\nDid you stop? No, I just drove by"), -1)
         
     def test_challenge15(self):
         self.assertEqual(CryptoStu.checkAndStripPadding("ICE ICE BABY\x04\x04\x04\x04"), "ICE ICE BABY")

@@ -304,51 +304,51 @@ def determineAESMode(encryptionFunc, preferredLen = 0):
     else:
         mode = 'cbc'
     return (oracleResult[0], mode)
-'''
+
 #Set 2:12
 fixedKey = urandom(16)
 
-def fixedKeyOracle(message):
-    prefix = 'Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK'
-    newMessage = message + prefix.decode('base64')
-    return encryptAES(newMessage,fixedKey)
+def fixedKeyEcbOracle(message):
+    postfix = 'Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK'
+    newMessage = message + postfix.decode('base64')
+    #TODO fix that the return value has to be this crappy pair for testing
+    return ('ecb', encryptAES_ECB(newMessage,fixedKey))
 
 def discoverBlockSize(encryptionFunc):
-    lastLen = len(encryptionFunc("A"))
+    lastLen = len(encryptionFunc("A")[1])
     for i in xrange(2,65):
-        ciphertext = encryptionFunc("A" * i)
+        ciphertext = encryptionFunc("A" * i)[1]
         if(len(ciphertext) != lastLen):
             return abs(len(ciphertext) - lastLen)
 
 
 def byteEcbDecryptionNoPrefix():
-    blockSize = discoverBlockSize(fixedKeyOracle)
-    print 'block size found:',blockSize
-    numBlocks = len(fixedKeyOracle("")) / blockSize
-    print 'number of blocks to discover:',numBlocks
+    #First find out the block size
+    blockSize = discoverBlockSize(fixedKeyEcbOracle)
+    numBlocks = len(fixedKeyEcbOracle("")[1]) / blockSize
 
-    if determineMode(fixedKeyOracle) == 'ecb':
-        print 'ecb mode confirmed'
-    else:
-        raise BaseException
+    #Now make sure it's ECB mode
+    assert determineAESMode(fixedKeyEcbOracle)[1] == 'ecb'
 
     prevBlock = 'A' * blockSize
     finalDecrypted = ''
+    
+    #Iterate through each block that we must discover
     for blockNum in xrange(0,numBlocks):
+        #Iterate through each byte in the current block, cracking one byte at a time
         currBlock = ''
         for currByte in xrange(1,blockSize+1):
-            targetBlock = fixedKeyOracle('A' * (blockSize - currByte))[blockSize * blockNum:blockSize * (blockNum+1)]
+            targetBlock = fixedKeyEcbOracle('A' * (blockSize - currByte))[1][blockSize * blockNum:blockSize * (blockNum+1)]
             for byte in xrange(0,256):
-                cipherGuess = fixedKeyOracle(prevBlock[currByte:blockSize] + currBlock + chr(byte))[0:blockSize]
+                cipherGuess = fixedKeyEcbOracle(prevBlock[currByte:blockSize] + currBlock + chr(byte))[1][0:blockSize]
                 if targetBlock == cipherGuess:
-                    print 'byte found: ' + chr(byte)
                     currBlock += chr(byte)
                     break
         finalDecrypted += currBlock
         prevBlock = currBlock
     return finalDecrypted
 
-
+'''
 #Set 2:13
 def decodeKeyValueObj(kvStr):
     pairList = kvStr.split('&')
