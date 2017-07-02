@@ -348,15 +348,22 @@ def byteEcbDecryptionNoPrefix():
         prevBlock = currBlock
     return finalDecrypted
 
-'''
 #Set 2:13
+'''Custom key value parser: from foo=bar&baz=qux&zap=zazzle
+creates
+{
+  foo: 'bar',
+  baz: 'qux',
+  zap: 'zazzle'
+}
+'''
 def decodeKeyValueObj(kvStr):
     pairList = kvStr.split('&')
     list = []
     for pair in pairList:
         tmp = pair.split('=')
-        tuple= (tmp[0],tmp[1])
-        list.append(tuple)
+        tuple = (tmp[0],tmp[1])
+        list.append(tmp)
 
     return list
 
@@ -364,26 +371,34 @@ def encodeKeyValueObj(list):
     kvStr = ''
     for pair in list:
         kvStr += pair[0] + '=' + pair[1] + '&'
+    #Remove final &, because it's not needed
     return kvStr[0:len(kvStr)-1]
 
-def profile_for(email):
+def createProfileForUser(email):
+    #Eat = and & characters, so that no injection can occur
     email = email.replace('=','').replace('&','')
     list = [('email',email),('uid','10'),('role','user')]
-    return encryptAES(encodeKeyValueObj(list),fixedKey)
+    return encryptAES_ECB(encodeKeyValueObj(list), fixedKey)
 
-def decryptParse(stream):
-    return decodeKeyValueObj(decryptAES(stream,fixedKey))
+def decryptAndParse(stream):
+    return decodeKeyValueObj(decryptAES_ECB(stream,fixedKey))
 
-def makeAdminAccount():
-    craftedEmailMiddleAdmin = 'A' * 10 + pad('admin',16) + '.us'
-    firstCiphertext = profile_for(craftedEmailMiddleAdmin)
+def hackAdminAccount():
+    #Discover ciphertext for a block that just has 'admin' then the real padding amount in it
+    craftedEmailMiddleAdmin = 'A' * 10 + padPKCS7('admin',16) + '.us'
+    firstCiphertext = createProfileForUser(craftedEmailMiddleAdmin)
     adminBlock = firstCiphertext[16:32]
-    craftedEmailBlockAligned = 'attacker1.com'
-    secondCiphertext = profile_for(craftedEmailBlockAligned)
+    
+    #Now give it a crafted email address length to make sure that '&role=' ends up 
+    #   on the edge of the block, so that we can replace the next part with our
+    #   admin block 
+    craftedEmailBlockAligned = 'stu@h4x0r.com'
+    secondCiphertext = createProfileForUser(craftedEmailBlockAligned)
 
     craftedCiphertext = secondCiphertext[0:(16 * 2)] + adminBlock
     return craftedCiphertext
 
+'''
 #Set 2:14
 def randomPrefixOracle(message):
     numRandomBytes = randint(0,0)
