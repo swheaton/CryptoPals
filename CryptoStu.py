@@ -653,22 +653,27 @@ def cbcPaddingOracleAttack(overrideChoice = -1):
         prevBlock = toDecrypt[block:block+16]
     return checkAndStripPadding(decrypted)
 
-'''
-#Set 3:18
-from struct import pack
 
+#Set 3:18
+import struct
+
+#Returns 64 bit little endian nonce || 64 bit little endian block number, encrypted with key
 def getStreamBlock(key, nonce, blockNumber):
-    ctrKey = pack('Q',nonce) + pack('<Q',blockNumber)
-    return encryptAESNoPadding(ctrKey,key)
+    ctrKey = struct.pack('Q',nonce) + struct.pack('<Q',blockNumber)
+    return encryptAES_ECB_NoPadding(ctrKey,key)
 
 def AES_CTR(message,key,nonce):
     crypted = ''
-    for ind in xrange(0,len(message),16):
+
+    #For each block, get the stream cipher block, then xor
+    for ind in xrange(0, len(message),16):
         xorBlock = getStreamBlock(key, nonce, ind/16)
         crypted += xor(message[ind:ind+16], xorBlock)
     return crypted
 
+'''
 #Set 3:19 - poor substitution cracking of AES .... I don't wanna do this
+#TODO
 
 #Set 3:20
 def crackCTR(fileName):

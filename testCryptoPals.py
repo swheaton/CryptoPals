@@ -148,6 +148,14 @@ class TestSet3(unittest.TestCase):
     def test_challenge17(self):
         self.assertEqual(CryptoStu.cbcPaddingOracleAttack(1).decode('base64'),
             "000001With the bass kicked in and the Vega's are pumpin'")
+            
+    def test_challenge18(self):
+        self.assertEqual(CryptoStu.AES_CTR("L77na/nrFsKvynd6HzOoG7GHTLXsTVu9qvY/2syLXzhPweyyMTJULu/6/kXX0KSvoOLSFQ==".decode('base64'), "YELLOW SUBMARINE", 0),
+            "Yo, VIP Let's kick it Ice, Ice, baby Ice, Ice, baby ")
+        text = "Hello, this is a test of a decent-sized stream. We will test encryption and decryption using AES CTR mode!"
+        key = "YELLOW SUBMARINE"
+        nonce = 123456789
+        self.assertEqual(CryptoStu.AES_CTR(CryptoStu.AES_CTR(text, key, nonce), key, nonce), text)
     
 if __name__ == '__main__':
     unittest.main()
