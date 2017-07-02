@@ -584,7 +584,6 @@ def cbcBitFlip():
     craftedMessage = test[0:32]+myBlock+test[48:]
     return craftedMessage
 
-'''
 #Set 3:17
 #random strings
 stringList=['MDAwMDAwTm93IHRoYXQgdGhlIHBhcnR5IGlzIGp1bXBpbmc=',
@@ -598,10 +597,15 @@ stringList=['MDAwMDAwTm93IHRoYXQgdGhlIHBhcnR5IGlzIGp1bXBpbmc=',
 'MDAwMDA4b2xsaW4nIGluIG15IGZpdmUgcG9pbnQgb2g=',
 'MDAwMDA5aXRoIG15IHJhZy10b3AgZG93biBzbyBteSBoYWlyIGNhbiBibG93']
 
-def chooseString():
-    choice = stringList[randint(0,9)]
+#Select one of the strings at random, then encrypt it
+def chooseString(overrideChoice = -1):
+    if overrideChoice > 0 and overrideChoice <= 9:
+        choice = stringList[overrideChoice]
+    else:
+        choice = stringList[randint(0,9)]
     return encryptAES_CBC(choice,fixedIv,fixedKey)
 
+#Decrypt ciphertext, returns true if padding is correct
 def consumeAndCheckPadding(ciphertext):
     try:
         decryptAES_CBC(ciphertext,fixedIv,fixedKey)
@@ -609,37 +613,47 @@ def consumeAndCheckPadding(ciphertext):
         return False
     return True
 
-
-def xorStringWithRepeatedNumber(discoveredIntermediate, number):
-    return "".join([chr(ord(byte) ^ number) for byte in discoveredIntermediate])
-
 def paddingOracleBlock(blockToDecrypt, prevBlock):
+    #Intermediate state AFTER being decrypted by AES, but BEFORE being xor'ed with the prev block
     discoveredIntermediate = ''
-    decrypted = ''
 
+    #Discover the block byte by byte, by adding position numbers of bytes at the
+    #   beginning, starting from 15 down to 0
     for position in xrange(15,-1,-1):
+        #Systematically try every possible byte
         for byte in xrange(0,256):
-            if consumeAndCheckPadding('\x00' * position + chr(byte) + xorStringWithRepeatedNumber(discoveredIntermediate,(16-position)) + blockToDecrypt):
+            #First give position number of random bytes.
+            #   Then add our target byte
+            #   Finally, we want the final bytes to be \x01 first, \x02\x02 next, and so on.
+            #   So, xor our discovered intermediate with one less than what we want to see,
+            #   so that we'll be able to tell when the padding ends up being correct
+            if consumeAndCheckPadding('\x00' * position + chr(byte) + xor(discoveredIntermediate, chr(16-position) * len(discoveredIntermediate)) + blockToDecrypt):
                  myByte = byte
                  break
 
+        #Xor our pseudo-plaintext byte (which happens to be the target padding number)
+        #   with the pseudo ciphertext to get the actual intermediate byte
         myByte ^= (16 - position)
         discoveredIntermediate = chr(myByte) + discoveredIntermediate
-        decrypted = chr(ord(prevBlock[position]) ^ myByte) + decrypted
+        
+    #Decrypted = Cipher ^ Intermediate
+    return xor(discoveredIntermediate, prevBlock)
 
-    return decrypted
-
-def cbcPaddingOracleAttack():
-    toDecrypt = chooseString()
+#Padding oracle attack. See http://robertheaton.com/2013/07/29/padding-oracle-attack/ for good explanation
+def cbcPaddingOracleAttack(overrideChoice = -1):
+    #Try and decrypt the string chosen by chooseString()
+    toDecrypt = chooseString(overrideChoice)
     prevBlock = fixedIv
     decrypted = ''
 
+    #Perform padding oracle on each block of the ciphertext
     for block in xrange(0,len(toDecrypt),16):
         decrypted += paddingOracleBlock(toDecrypt[block:block+16], prevBlock)
 
         prevBlock = toDecrypt[block:block+16]
     return checkAndStripPadding(decrypted)
 
+'''
 #Set 3:18
 from struct import pack
 

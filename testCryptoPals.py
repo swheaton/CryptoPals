@@ -142,7 +142,12 @@ class TestSet2(unittest.TestCase):
         
     def test_challenge16(self):
         self.assertTrue(CryptoStu.decryptAndConfirmAdmin(CryptoStu.cbcBitFlip()))
+        
 
-
+class TestSet3(unittest.TestCase):
+    def test_challenge17(self):
+        self.assertEqual(CryptoStu.cbcPaddingOracleAttack(1).decode('base64'),
+            "000001With the bass kicked in and the Vega's are pumpin'")
+    
 if __name__ == '__main__':
     unittest.main()
