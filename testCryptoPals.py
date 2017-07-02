@@ -156,6 +156,13 @@ class TestSet3(unittest.TestCase):
         key = "YELLOW SUBMARINE"
         nonce = 123456789
         self.assertEqual(CryptoStu.AES_CTR(CryptoStu.AES_CTR(text, key, nonce), key, nonce), text)
+        
+    def test_challenge20(self):
+        decryptedLines = CryptoStu.crackCTR(CryptoStu.createAesCtrEncryptions("files/p19.txt"))
+        #print decryptedLines #Uncomment to print decrypted lines from the file
+        self.assertTrue("that woman's days we" in [line.lower() for line in decryptedLines])
+        self.assertTrue("coming with vivid fa" in [line.lower() for line in decryptedLines])
+
     
 if __name__ == '__main__':
     unittest.main()

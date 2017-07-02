@@ -671,29 +671,34 @@ def AES_CTR(message,key,nonce):
         crypted += xor(message[ind:ind+16], xorBlock)
     return crypted
 
-'''
+
 #Set 3:19 - poor substitution cracking of AES .... I don't wanna do this
 #TODO
 
 #Set 3:20
-def crackCTR(fileName):
+#Cracks CTR mode with a fixed nonce, given a list of ciphertext lines.
+#   It is essentially like a Vigenere cipher if there is fixed nonce
+def crackCTR(encryptedLines):
+    #Truncate all lines to a common size - that of the smallest
+    smallestLengthLine = min([len(line) for line in encryptedLines])
+    truncatedLines = [line[0:smallestLengthLine] for line in encryptedLines]
+
+    #Treat each character as an individual single xor encryption, so concat
+    #   that character from all samples and solve. That will give us the current byte of the key stream
+    xorStream = ''
+    for ind in xrange(smallestLengthLine):
+        subText = "".join([line[ind] for line in truncatedLines])
+        bestPair = singleXorDecrypt(subText.encode('hex'), True)
+        xorStream += bestPair.decodeByte
+
+    return [xor(line, xorStream) for line in truncatedLines]
+            
+def createAesCtrEncryptions(fileName):
     with open(fileName) as file:
         lines = file.readlines()
-        encryptedLines = [AES_CTR(line.decode('base64'),'YELLOW SUBMARINE',0) for line in lines]
+        return [AES_CTR(line.decode('base64'), fixedKey, 0) for line in lines]
 
-        smallestLengthLine = min([len(line) for line in encryptedLines])
-        print smallestLengthLine
-        truncatedLines = [line[0:smallestLengthLine] for line in encryptedLines]
-
-        xorStream = ''
-        for ind in xrange(smallestLengthLine):
-            subText = "".join([line[ind] for line in truncatedLines])
-            bestPair = singleXorDecrypt(subText.encode('hex'), True)
-            xorStream += bestPair.decodeByte
-
-        for line in truncatedLines:
-            print xor(line,xorStream)
-
+'''
 #Set 3:21 - Mersenne Twister
 mtIndex = 0
 mtState = [0 for i in xrange(624)]
