@@ -181,6 +181,26 @@ class TestSet3(unittest.TestCase):
         firstNumber = createdMT[1]
         guessedSeed = CryptoStu.crackMT(firstNumber)
         self.assertEqual(guessedSeed, actualSeed)
+        
+    def test_challenge23(self):
+        #Test untemper function
+        mt = CryptoStu.MT()
+        value = 9639572
+        self.assertEqual(CryptoStu.untemper(mt.temper(value)), value)
+        value = 2576459
+        self.assertEqual(CryptoStu.untemper(mt.temper(value)), value)
+        
+        #Initialize the MT with a seed, then see what the first two sets of extracted numbers are
+        seed = 74859264
+        mt.initMT(seed)
+        firstValues = [mt.extractNumber() for i in xrange(624)]
+        nextValues = [mt.extractNumber() for i in xrange(624)]
+        
+        #Initialize it again so we can let the cloneMT function try to predict
+        mt.initMT(seed)
+        predictedValues = CryptoStu.cloneMT(mt)
+        self.assertEqual(predictedValues, nextValues)
+        
 
     
 if __name__ == '__main__':

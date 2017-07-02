@@ -711,7 +711,8 @@ class MT:
         for i in xrange(1,624):
             self.mtState[i] = (1812433253 * (self.mtState[i-1] ^ (self.mtState[i-1] >> 30)) + i) & 0xffffffff
     
-    def __temper(self, y):
+    #Leaving temper non-private so that we can use it to test untemper() in later challenge
+    def temper(self, y):
         y ^= y >> 11
         y ^= (y << 7) & 2636928640
         y ^= (y << 15) & 4022730753
@@ -723,7 +724,7 @@ class MT:
             self.__generateNumbers()
     
         y = self.mtState[self.mtIndex]
-        y = self.__temper(y)
+        y = self.temper(y)
     
         self.mtIndex = (self.mtIndex + 1) % 624
         return y
@@ -760,8 +761,9 @@ def crackMT(firstNum):
 
     return -1
 
-'''
+
 #Set 3:23
+#These set of four untemper functions undo a specific line in the temper() process
 def untemperR18(value):
     return value ^ (value >> 18)
 
@@ -779,15 +781,12 @@ def untemperL7(value):
 
     return result
 
-def temperPart(y):
-    y ^= (y << 7) & 2636928640
-    return y
-
 def untemperR11(value):
     mid = value ^ (value >> 11)
     mid = mid >> 11
     return value ^ mid
 
+#Untemper is the counterpart to the temper() function in MT. Should undo it
 def untemper(value):
     value = untemperR18(value)
     value = untemperL15(value)
@@ -795,19 +794,17 @@ def untemper(value):
     value = untemperR11(value)
     return value
 
-def cloneMT():
-    initMT(randint(0,2**32-1))
-    state = [extractNumber() for i in xrange(624)]
-    nextNums = [extractNumber() for i in xrange(624)]
-    global mtState
-    mtState = [untemper(val) for val in state]
-    out = [extractNumber() for i in xrange(624)]
+#Clones 
+def cloneMT(mt):
+    #Extract out its 624-integer state
+    originalState = [mt.extractNumber() for i in xrange(624)]
 
-    if nextNums == out:
-        print "Got it!"
-    else:
-        print 'Nope...'
+    mt.mtState = [untemper(val) for val in originalState]
+    out = [mt.extractNumber() for i in xrange(624)]
 
+    return out
+
+'''
 #Set 3:24
 def mtStreamCipher(message, seed):
     crypted = ''
