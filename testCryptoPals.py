@@ -89,17 +89,20 @@ class TestSet2(unittest.TestCase):
         iv = "8765432187654321"
         key = "YELLOW SUBMARINE"
         self.assertEqual(CryptoStu.decryptAES_CBC(CryptoStu.encryptAES_CBC(text, iv, key), iv, key), text)
+        self.assertEqual(len(CryptoStu.encryptAES_CBC(text, iv, key)), 32)
         
-        #Test something less than 16 bytes (12)
-        text = "TESTTESTTEST"
+        #Test something less than 16 bytes (15)
+        text = "123456781234567"
         iv = "8765432187654321"
         key = "YELLOW SUBMARINE"
+        self.assertEqual(len(CryptoStu.encryptAES_CBC(text, iv, key)), 16)
         self.assertEqual(CryptoStu.decryptAES_CBC(CryptoStu.encryptAES_CBC(text, iv, key), iv, key), text)
         
-        #Test something more than 16 bytes (20)
-        text = "TESTTESTTESTTESTTEST"
+        #Test something more than 16 bytes (17)
+        text = "12345678123456789"
         iv = "8765432187654321"
         key = "YELLOW SUBMARINE"
+        self.assertEqual(len(CryptoStu.encryptAES_CBC(text, iv, key)), 32)
         self.assertEqual(CryptoStu.decryptAES_CBC(CryptoStu.encryptAES_CBC(text, iv, key), iv, key), text)
         
     def test_challenge11(self):
@@ -108,7 +111,6 @@ class TestSet2(unittest.TestCase):
             oracleResult = CryptoStu.determineAESMode(CryptoStu.randomEcbCbcOracle, 16)
             self.assertEqual(oracleResult[0], oracleResult[1])
     
-    @unittest.skip("Also slow")
     def test_challenge12(self):
         self.assertEqual(CryptoStu.discoverBlockSize(CryptoStu.fixedKeyEcbOracle), 16)
         self.assertEqual(CryptoStu.determineAESMode(CryptoStu.fixedKeyEcbOracle)[1], 'ecb')

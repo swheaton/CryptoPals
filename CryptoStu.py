@@ -10,14 +10,16 @@ def b64ToHex(b64):
 
 
 #set 1:2
-def hexxor(a, b):     # xor two hex strings of different lengths
+''' xor two hex strings (chops longer string down to size of shorter)'''
+def hexxor(a, b):
     if len(a) > len(b):
         out =  "".join(["%x" % (int(x,16) ^ int(y,16)) for (x, y) in zip(a[:len(b)], b)])
     else:
         out =  "".join(["%x" % (int(x,16) ^ int(y,16)) for (x, y) in zip(a, b[:len(a)])])
     return out
 
-def xor(a,b): # xor two regular strings of different lengths
+'''  xor two regular strings (chops longer string down to size of shorter)'''
+def xor(a,b):
     if len(a) > len(b):
         out = "".join([chr(ord(x) ^ ord(y)) for (x,y) in zip(a[:len(b)],b)])
     else:
@@ -29,6 +31,10 @@ import sys
 import string
 from collections import namedtuple
 ScoreText = namedtuple('ScoreText','score text decodeByte decodeHex')
+
+#Character frequency in the English language, from http://en.algoritmy.net/article/40379/Letter-frequency-English
+#   This is a more updated link, if I ever care to make this function more accurate: http://norvig.com/mayzner.html"
+#   The link also has stats for letter positioning within a word, n-gram frequency, and n-gram positioning as well.
 charFreqList = [
                 8.167,#A
                 1.492,#B
@@ -57,53 +63,55 @@ charFreqList = [
                 1.974,#Y
                 0.074#Z
                 ]
+                
+#Build english frequency map for each character, all lower case
+#TODO include punctuation, and penalize nonprintable characters
+engCharFreq = [0 for i in xrange(256)]
+for ind, freq in enumerate(charFreqList):
+    engCharFreq[ind+ord('a')] = freq
+#Also add frequency of spaces, which is approximately one every 5.1 characters, or ~19%
+engCharFreq[ord(' ')] = 100.0 / 5.1
 
-#finds variance from typical english of text
+#finds variance from typical english text
 def varianceFromEnglish(text):
     variance = 0.0
-    textCharFreq = []
-    engCharFreq = []
-    for i in xrange(256):
-        textCharFreq.append(0)
-        engCharFreq.append(0)
-
-    for ind, freq in enumerate(charFreqList):
-        engCharFreq[ind+ord('a')] = freq
-        engCharFreq[ind+ord('A')] = freq
-    engCharFreq[ord(' ')] = 100.0 / 5.1
+    textCharFreq = [0 for i in xrange(256)]
     
     #TODO make nonprintable characters create huge variances
 
+    # Create frequency map for this piece of text, so we can compare to english
     for char in text:
-        textCharFreq[ord(char)] += 100.0 / len(text)
+        textCharFreq[ord(char.lower())] += 100.0 / len(text)
 
+    # Diff frequencies for text with the one for english, and square the difference
     for ind in xrange(len(textCharFreq)):
         variance += (textCharFreq[ind] - engCharFreq[ind]) ** 2
 
     return variance
 
 #Finds most likely candidate for decrypted single-byte xor
+#   useNonPrintable is true if we assume the key will not be a nonprintable characters
 def singleXorDecrypt(hexVal, useNonPrintable=True):
     bestScore = ScoreText(score=sys.float_info.max, text = '',decodeByte='', decodeHex='')
 
+    # Try all characters
     for ind in xrange(256):
         if useNonPrintable == False and chr(ind) not in string.printable:
             continue
 
-        byte = hex(ind)
-        byte = byte[2:]
-        if len(byte) == 1:
-            byte = '0' + byte
-
+        #Get byte in hex, perform the hex xor, then evaluate english potential
+        byte = '{0:02x}'.format(ind)
         result = hexxor(hexVal, byte * (len(hexVal) / 2))
         score = varianceFromEnglish(result.decode('hex'))
 
+        # Store best score so far
         if(score < bestScore.score):
             bestScore = ScoreText(score, result.decode('hex'), decodeByte=chr(ind), decodeHex=hex(ind))
 
     return bestScore
 
 #Set 1:4
+# Finds the line in a file that is most likely to have been single-xor encrypted
 def findSingleXorCipherInFile(fileName):
     with open(fileName) as file:
         bestPair = ScoreText(score=sys.float_info.max, text = '', decodeByte='', decodeHex='')
@@ -116,7 +124,8 @@ def findSingleXorCipherInFile(fileName):
     return bestPair
 
 #Set 1:5
-def repeatingKeyXor(s, key): #takes in a string and a key, and returns repeating-XOR output
+#takes in a string and a key, and returns repeating-XOR output, aka Vigenere
+def repeatingKeyXor(s, key):
     hexText = s.encode('hex')
     hexKey = key.encode('hex')
 
@@ -126,6 +135,7 @@ def repeatingKeyXor(s, key): #takes in a string and a key, and returns repeating
     out = hexxor(hexText,hexKey)
     return out.decode('hex')
 
+# Call repeatingKeyXor on text from a file
 def repeatingKeyXorFile(fileName, key):
     with open(fileName) as file:
         text = "".join(file.readlines())
@@ -134,39 +144,58 @@ def repeatingKeyXorFile(fileName, key):
 
 #Set 1:6
 import numpy as np
-def hammingDist(s1,s2): #computes hamming distance between two equal-length strings
+#computes hamming distance between two equal-length strings, aka number of bits
+#   that are different between the two
+def hammingDist(s1,s2):
     assert(len(s1) == len(s2))
     bitValues = (1 << np.arange(8))[:,None] #Just generates [1, 2, 4, 8, ... , 128]
+    # Iterates through each byte of both strings, performs bitwise xor with bitValues using numpy,
+    #   then counts non_zero of this result so that we get the hamming distance of the two bytes.
+    #   Finally, sums all of that together to get the overall hamming distance
     return sum(np.count_nonzero((np.bitwise_xor(byte1, byte2) & bitValues) != 0) for (byte1, byte2) in zip(bytearray(s1), bytearray(s2)))
 
+# Guess key size of Vigenere-encrypted text
+#   Warning: assumes text size is sufficiently large (> 41*5 bytes)
 def guessKeySize(text):
     lowestHamSum = sys.float_info.max
     keyGuess = 0
+    #Arbitrarily cap key size search at 41
+    #   Assumes text is sufficiently large (> 41*5 bytes)
     for keysize in xrange(1,41):
         hamDistList = []
+        # Take the first four blocks of size keysize, and compare them against each other
+        #   using hammingDist(). Sum the results and normalize with the keysize
         a = [0,keysize,keysize*2,keysize*3]
-        pairs = [(x, y) for x in a for y in a]
+        pairs = [(x, y) for x in a for y in a if x != y]
         for pair in pairs:
-            if pair[0] == pair[1]:
-                continue;
-            hamDistList.append(hammingDist(text[pair[0]:(pair[0]+keysize)],text[pair[1]:(pair[1]+keysize)]))
+            hamDistList.append(hammingDist(text[pair[0]:(pair[0]+keysize)], text[pair[1]:(pair[1]+keysize)]))
         hamSum = sum(hamDistList) / keysize
+        
+        # All in one line!! But it's gross, so stick with the spread-out one
+        #hamSum2 = sum([hammingDist(text[pair[0]:(pair[0]+keysize)], text[pair[1]:(pair[1]+keysize)]) for pair in [(x, y) for x in xrange(0, keysize*4, keysize) for y in xrange(0, keysize*4, keysize) if x != y]]) / keysize
+        
+        # Normalized edit distance sum that is the lowest is evidence that that's the key size
         if(hamSum < lowestHamSum):
             lowestHamSum = hamSum
             keyGuess = keysize
-
-        #hamSum = sum([hammingDist(text[startInd:(startInd+keysize)],text[(startInd+keysize):(startInd+keysize*2)])/keysize for startInd in xrange(0,keysize*3,keysize)])
+            
     return keyGuess
-    
+
+#Call guessKeySize() on contents of a file
 def guessKeySizeFile(fileName):
     with open(fileName) as file:
         b64Text = "".join(file.readlines())
         hexText = b64ToHex(b64Text)
         return guessKeySize(hexText.decode('hex'))
 
-def solveVigenere(text): #solves repeating-key xor vigenere given hex string of cipher text
+#solves repeating-key xor vigenere given hex string of cipher text
+def solveVigenere(text):
+    #First, guess key size
     keysize = guessKeySize(text)
 
+    #Now, for each byte in the key, concatenate all bytes that would be xor'ed with
+    #   that key byte together, and solve as a singleXor decryption to find the key byte
+    #   Append them all together, and you have the full key
     key = ''
     for startSpot in xrange(keysize):
         subText = "".join([text[ind] for ind in xrange(startSpot,len(text), keysize)])
@@ -175,24 +204,27 @@ def solveVigenere(text): #solves repeating-key xor vigenere given hex string of 
     out = repeatingKeyXor(text, key)
     return (key, out)
 
+#Call solveVigenere() on contents of a file
 def solveVigenereFile(fileName):
     with open(fileName) as file:
         b64Text = "".join(file.readlines())
         hexText = b64ToHex(b64Text)
         return solveVigenere(hexText.decode('hex'))
         
-
 #Set 1:7
 from Crypto.Cipher import AES
 
+#Use AES in ECB mode, assuming no padding
 def decryptAES_ECB_NoPadding(message,key):
     obj = AES.new(key)
     decrypted = obj.decrypt(message)
     return decrypted
 
+#Use AES in ECB mode, first checking padding
 def decryptAES_ECB(message, key):
     return checkAndStripPadding(decryptAES_ECB_NoPadding(message,key))
 
+#Decrypt file with AES in ECB mode
 def decryptAES_ECB_File(fileName, key):
     with open(fileName) as file:
         message = "".join(file.readlines())
@@ -200,7 +232,10 @@ def decryptAES_ECB_File(fileName, key):
         return decryptAES_ECB(message,key)
 
 #Set 1:8
-def isEcbEncryptedCipher(hexText): #takes in hex text
+#Decide if a piece of hex text is encrypted using ECB mode
+def isEcbEncryptedCipher(hexText):
+    #If there is a block that is repeated twice, ECB mode was most likely
+    #    used
     blockSet = set()
     for startInd in xrange(0,len(hexText), 16*2):
         if hexText[startInd:(startInd+16*2)] in blockSet:
@@ -208,6 +243,7 @@ def isEcbEncryptedCipher(hexText): #takes in hex text
         blockSet.add(hexText[startInd:(startInd+16*2)])
     return False
 
+#Find line in file that was most likely encrypted with ECB mode
 def findEcbEncryptedCipherFile(fileName):
     encryptedCiphers = []
     with open(fileName) as file:
@@ -228,40 +264,45 @@ def padPKCS7(message, blockSize):
 
 
 #Set 2:10
-def encryptAES_ECB_NoPadding(message,key): #encrypts block without padding
+#Encrypt AES in ECB mode, assuming no padding
+def encryptAES_ECB_NoPadding(message,key):
     obj = AES.new(key)
     encrypted = obj.encrypt(message)
     return encrypted
 
+#Encrypt AES in ECB mode, adding padding
 def encryptAES_ECB(message, key, needsPadding = True):
     encrypted = encryptAES_ECB_NoPadding(padPKCS7(message, 16), key)
     return encrypted
 
+#Encrypt AES in CBC mode, given an initVector and key
 def encryptAES_CBC(message, initVector, key):
     cipherText = ''
     prev = initVector
-    ind = -16
-    for ind in xrange(0,len(message)-15, 16):
+    
+    # First, pad the message to a multiple of block size 16
+    message = padPKCS7(message, 16)
+    #Now, chunk through each block, encrypt them with ECB by xor'ing the block with
+    #   the previous one, then concatenate to the final cipher text
+    for ind in xrange(0, len(message), 16):
         prev = encryptAES_ECB_NoPadding(xor(message[ind:(ind+16)],prev), key)
         cipherText += prev
-    ind += 16
-    cipherText += encryptAES_ECB_NoPadding(xor(padPKCS7(message[ind:],16),prev), key)
 
     return cipherText
 
 def decryptAES_CBC(message, initVector, key):
     plainText = ''
     prev = initVector
-    ind = -16
-    for ind in xrange(0,len(message)-16, 16):
+    
+    #Rip through each block, decrypting it and then xor'ing with the previous block
+    #   to get the message
+    for ind in xrange(0, len(message), 16):
         curr = message[ind:(ind+16)]
         plainText += xor(decryptAES_ECB_NoPadding(curr,key),prev)
         prev = curr
-    ind += 16
-    curr = decryptAES_ECB_NoPadding(message[ind:],key)
-    plainText += xor(curr,prev)
     return checkAndStripPadding(plainText)
 
+#Encrypt or decrypt a file with AES CBC mode
 def fileAES_CBC(fileName, initVector, key, encDec):
     assert encDec == 'enc' or encDec == 'dec'
     with open(fileName) as file:
@@ -275,6 +316,8 @@ def fileAES_CBC(fileName, initVector, key, encDec):
 from os import urandom
 from random import randint
 from math import ceil
+# Function randomly chooses ECB or CBC mode to encrypt a message with, after first
+#   appending and prepending 5-10 random bytes to the message, using a random key every time
 def randomEcbCbcOracle(message):
        #Generate a random 16-byte key
        randomKey = urandom(16)
@@ -308,12 +351,16 @@ def determineAESMode(encryptionFunc, preferredLen = 0):
 #Set 2:12
 fixedKey = urandom(16)
 
+# Using a fixed key, append a message to the user's message, then encrypt in ECB mode
 def fixedKeyEcbOracle(message):
     postfix = 'Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK'
     newMessage = message + postfix.decode('base64')
     #TODO fix that the return value has to be this crappy pair for testing
     return ('ecb', encryptAES_ECB(newMessage,fixedKey))
 
+# Discover the block size used for a given encryption function, by giving it
+#   subsequently longer messages, and seeing when the length changes. Then,
+#   the difference between the two is the block size
 def discoverBlockSize(encryptionFunc):
     lastLen = len(encryptionFunc("A")[1])
     for i in xrange(2,65):
@@ -321,7 +368,12 @@ def discoverBlockSize(encryptionFunc):
         if(len(ciphertext) != lastLen):
             return abs(len(ciphertext) - lastLen)
 
-
+#Discover the appended message in fixedKeyEcbOracle() one byte at a time, by placing
+#   the unknown byte at the end of block after all 'A' characters. Then we can try all
+#   256 possible characters, and match what the oracle tells us is the cipher text for those
+#   with what we saw for the actual message, to determine the first byte. Subtract an 'A' to
+#   shift the message down one spot, so now we can determine the next byte since we know the
+#   block will be 14 'A's plus the first byte we already know. Etc.
 def byteEcbDecryptionNoPrefix():
     #First find out the block size
     blockSize = discoverBlockSize(fixedKeyEcbOracle)
@@ -349,7 +401,8 @@ def byteEcbDecryptionNoPrefix():
     return finalDecrypted
 
 #Set 2:13
-'''Custom key value parser: from foo=bar&baz=qux&zap=zazzle
+'''
+Custom key value parser: from foo=bar&baz=qux&zap=zazzle
 creates
 {
   foo: 'bar',
@@ -391,7 +444,7 @@ def hackAdminAccount():
     
     #Now give it a crafted email address length to make sure that '&role=' ends up 
     #   on the edge of the block, so that we can replace the next part with our
-    #   admin block 
+    #   admin block
     craftedEmailBlockAligned = 'stu@h4x0r.com'
     secondCiphertext = createProfileForUser(craftedEmailBlockAligned)
 
@@ -445,8 +498,8 @@ def byteEcbDecryptionRandPrefix():
     return finalDecrypted
 
     return
-
 '''
+
 #Set 2:15
 #Function defined in challenge 15, but used in previous functions retroactively, particularly AES encryption
 def checkAndStripPadding(message):
