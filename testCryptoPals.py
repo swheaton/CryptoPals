@@ -173,7 +173,14 @@ class TestSet3(unittest.TestCase):
         mt.initMT(1234567)
         pseudoRandomNums2 = [mt.extractNumber() for i in xrange(25)]
         self.assertEqual(pseudoRandomNums, pseudoRandomNums2)
-        
+    
+    @unittest.skip("Takes too long by design")
+    def test_challenge22(self):
+        createdMT = CryptoStu.createTheOtherMT()
+        actualSeed = createdMT[0]
+        firstNumber = createdMT[1]
+        guessedSeed = CryptoStu.crackMT(firstNumber)
+        self.assertEqual(guessedSeed, actualSeed)
 
     
 if __name__ == '__main__':

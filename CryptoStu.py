@@ -736,23 +736,31 @@ class MT:
             if y % 2 != 0:
                 self.mtState[i] ^= 2567483615
 
-'''
+
 #Set 3:22
 import time
-def crackMT():
-    time.sleep(randint(40,1000))
-    initMT(int(time.time()))
-    time.sleep(randint(40,1000))
-    firstNumber = extractNumber()
+
+def createTheOtherMT():
+    mt = MT()
     currTime = int(time.time())
-    for t in xrange(currTime - 2000,currTime):
-        initMT(t)
-        guess = extractNumber()
-        if guess == firstNumber:
+    mt.initMT(currTime)
+    time.sleep(randint(10, 20))
+    return (currTime, mt.extractNumber())
+
+#Crack an MT, given its first call to extractNumber(), and that it has recently
+#   been initialized with a call to time.time()
+def crackMT(firstNum):
+    currTime = int(time.time())
+    myMT = MT()
+    for t in xrange(currTime, currTime - 2000, -1):
+        myMT.initMT(t)
+        guess = myMT.extractNumber()
+        if guess == firstNum:
             return t
 
     return -1
 
+'''
 #Set 3:23
 def untemperR18(value):
     return value ^ (value >> 18)
