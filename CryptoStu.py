@@ -361,7 +361,7 @@ def fixedKeyEcbOracle(message):
 # Discover the block size used for a given encryption function, by giving it
 #   subsequently longer messages, and seeing when the length changes. Then,
 #   the difference between the two is the block size
-def discoverBlockSize(encryptionFunc):
+def discoverBlockSize_NoPrefix(encryptionFunc):
     lastLen = len(encryptionFunc("A")[1])
     for i in xrange(2,65):
         ciphertext = encryptionFunc("A" * i)[1]
@@ -376,7 +376,7 @@ def discoverBlockSize(encryptionFunc):
 #   block will be 14 'A's plus the first byte we already know. Etc.
 def byteEcbDecryptionNoPrefix():
     #First find out the block size
-    blockSize = discoverBlockSize(fixedKeyEcbOracle)
+    blockSize = discoverBlockSize_NoPrefix(fixedKeyEcbOracle)
     numBlocks = len(fixedKeyEcbOracle("")[1]) / blockSize
 
     #Now make sure it's ECB mode
@@ -451,35 +451,62 @@ def hackAdminAccount():
     craftedCiphertext = secondCiphertext[0:(16 * 2)] + adminBlock
     return craftedCiphertext
 
-'''
+
 #Set 2:14
-def randomPrefixOracle(message):
-    numRandomBytes = randint(0,0)
+#Prepends random number of bytes, then calls fixedKeyEcbOracle
+def randomPrefixEcbOracle(message):
+    numRandomBytes = randint(0,256)
     randomBytes = urandom(numRandomBytes)
-    return fixedKeyOracle(randomBytes + message)
+    return ('ecb', fixedKeyEcbOracle(randomBytes + message)[1])
+
+# Discover the block size used for a given encryption function which might have
+#   a prefix randomly added to it, by giving it
+#   subsequently longer messages, and keeping track of the lengths. Greatest common
+#   divisor is very likely the block size
+
+#First, homegrown gcd functions. Python 3.5 has it included, but we don't have that
+def gcdTwo(a, b):
+    if b == 0:
+        return a
+    else:
+        return gcdTwo(b, a % b)
+
+#Apply gcdTwo to every sequential pair in the list to find the overall gcd
+def gcdMult(numberList):
+    return reduce(gcdTwo, numberList)
+
+def discoverBlockSize_Prefix(encryptionFunc):
+    lenList = []
+    #Is 64 enough data points?? Probably
+    for i in xrange(64):
+        ciphertext = encryptionFunc("A" * i)[1]
+        lenList.append(len(ciphertext))
+
+    return gcdMult(lenList)    
+'''
+def discoverMaxNumBlocks(blockSize):
+    maxSize = 0
+    for i in xrange(0,blockSize*2):
+        size = len(randomPrefixEcbOracle('')[1])
+        print size
+        if size > maxSize:
+            maxSize = size
+    return maxSize / blockSize
 
 def findOneOffBlock(text,blockNum = 0,blockSize = 16):
     cipherSet = set()
     while True:
-        cipherBlock = randomPrefixOracle(text)[blockNum*blockSize:(blockNum+1)*blockSize]
+        cipherBlock = randomPrefixEcbOracle(text)[blockNum*blockSize:(blockNum+1)*blockSize]
         if cipherBlock in cipherSet:
             break
         cipherSet.add(cipherBlock)
     cipherSet.clear()
     return cipherBlock
 
-def discoverMaxNumBlocks(blockSize):
-    maxSize = 0
-    for i in xrange(0,blockSize*2):
-        size = len(randomPrefixOracle(''))
-        if size > maxSize:
-            maxSize = size
-    return maxSize / blockSize
-
-
 def byteEcbDecryptionRandPrefix():
-    blockSize = discoverBlockSize(randomPrefixOracle)
+    blockSize = discoverBlockSize_Prefix(randomPrefixEcbOracle)
     numBlocks = discoverMaxNumBlocks(blockSize)
+    print numBlocks
 
     prevBlock = 'A' * blockSize
     finalDecrypted = ''
@@ -495,9 +522,8 @@ def byteEcbDecryptionRandPrefix():
                     break
         finalDecrypted += currBlock
         prevBlock = currBlock
+        
     return finalDecrypted
-
-    return
 '''
 
 #Set 2:15
