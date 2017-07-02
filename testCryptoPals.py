@@ -201,6 +201,23 @@ class TestSet3(unittest.TestCase):
         predictedValues = CryptoStu.cloneMT(mt)
         self.assertEqual(predictedValues, nextValues)
         
+    @unittest.skip("Too slow due to self-imposed sleep")
+    def test_challenge24(self):
+        #Test mt stream cipher first
+        text = "Hello, this is a test of a decent-sized stream. We will test encryption and decryption using MT PRNG stream mode!"
+        seed = 8675309
+        self.assertEqual(CryptoStu.mtStreamCipher(CryptoStu.mtStreamCipher(text, seed),seed), text)
+        
+        mtEncrypted = CryptoStu.encryptMTKnownText()
+        originalSeed = mtEncrypted[0]
+        encryptedText = mtEncrypted[1]
+        guessedSeed = CryptoStu.breakMTKnownText(encryptedText)
+        self.assertEqual(guessedSeed, originalSeed)
+        
+        passwordReset = CryptoStu.genPasswordResetToken()
+        originalSeed = passwordReset[0]
+        token = passwordReset[1]
+        self.assertEqual(CryptoStu.determineMTCurrTime(token, 100), originalSeed)
 
     
 if __name__ == '__main__':

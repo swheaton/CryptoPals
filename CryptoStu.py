@@ -804,87 +804,59 @@ def cloneMT(mt):
 
     return out
 
-'''
+
 #Set 3:24
+#Uses MT PRNG to make a stream cipher by emitting a pseudo-random keystream
 def mtStreamCipher(message, seed):
+    #Init the MT
     crypted = ''
-    initMT(seed)
-    for ind in xrange(0,len(message),4):
-        newRandom = extractNumber()
-        stringValue = pack('>I',newRandom)
+    mt = MT()
+    mt.initMT(seed)
+    
+    #Get a series of pseudo-random integers, then make them into a key stream
+    for ind in xrange(0, len(message), 4):
+        newRandom = mt.extractNumber()
+        #Pack the int into a byte string to become the key stream
+        stringValue = struct.pack('>I',newRandom)
         crypted += xor(stringValue, message[ind:ind+4])
     return crypted
 
+#Prepends known text (14 A's) with random number of random bytes
 def encryptMTKnownText():
     seed = randint(0,2**16-1)
     numRandBytes = randint(0,64)
-    print 'initial seed:',seed
     encrypted = mtStreamCipher(urandom(numRandBytes) + 'A'*14, seed)
-    return encrypted
+    return (seed, encrypted)
 
-def breakMTKnownText():
-    encrypted = encryptMTKnownText()
+#Break encryptMTKnownText()'s encrypted text
+def breakMTKnownText(encrypted):
+    #Dunno what the random bytes were, so just make them padding
     padding = 'P' * (len(encrypted) - 14)
+    #Try every possible 16-bit seed
     for seed in xrange(0,2**16):
+        #Try encrypting using that seed
         tryEncrypt = mtStreamCipher(padding + 'A'*14, seed)
+        #Found the right seed if the known text encryption works out to be the same
         if tryEncrypt[len(tryEncrypt)-14:] == encrypted[len(encrypted)-14:]:
             return seed
 
     return -1
 
 def genPasswordResetToken():
-    initMT(int(time.time()))
-    return str(extractNumber())
+    mt = MT()
+    currTime = int(time.time())
+    print "**", currTime
+    mt.initMT(currTime)
+    time.sleep(10)
+    return (currTime, str(mt.extractNumber()))
 
 def determineMTCurrTime(token, amtCheckBackwards):
     currTime = int(time.time())
-    print currTime
+    myMT = MT()
     for t in xrange(currTime, currTime - amtCheckBackwards, -1):
-        initMT(t)
-        if token == str(extractNumber()):
-            return currTime
+        myMT.initMT(t)
+        if token == str(myMT.extractNumber()):
+            return t
     return -1
 
-#test test
 #Set 4:25
-
-#print determineMTCurrTime(genPasswordResetToken(),5000)
-#print genPasswordResetToken()
-#print 'found seed:', breakMTKnownText()
-#print mtStreamCipher(mtStreamCipher('hello my name is Stuart and I am cool; here today to just say hello.', 8675309),8675309)
-#cloneMT()
-#print untemper(temper(93572985))
-#print crackMT()
-#initMT(105100)
-#for i in xrange(10):
-#    print extractNumber()
-#crackCTR('p20.txt')
-#print AES_CTR('L77na/nrFsKvynd6HzOoG7GHTLXsTVu9qvY/2syLXzhPweyyMTJULu/6/kXX0KSvoOLSFQ=='.decode('base64'), 'YELLOW SUBMARINE', 0)
-#print cbcPaddingOracleAttack().decode('base64')
-#print consumeAndCheckPadding(chooseString())
-#cbcBitFlip()
-#print stripPadding('ICE ICE BABY\x04\x04\x04\x04')
-#print byteEcbDecryptionRandPrefix()
-#print decryptParse(makeAdminAccount())
-#print byteEcbDecryption()
-#for i in xrange(10):
-#    print determineMode(ebc_cbc_encryption,0) + ' guess'
-#iv = "\x01\xfa\xbc\x82\x71\x9f\x0b\x3e\xe4\x62\x41\xb6\x13\x21\x48\x78"
-#print decryptAES_CBC(encryptAES_CBC("YELLOW SUBMARINE",iv,"YELLOW SUBMARINE"),iv,"YELLOW SUBMARINE")
-#print decryptAES(encryptAES("YELLOW SUBMARINE","YELLOW SUBMARINE"),"YELLOW SUBMARINE")
-#print fileAES_CBC('p10.txt',iv, "YELLOW SUBMARINE",'dec')
-#print xor("YELLOW SUBMARINE", "ELLO GUVNA HOWDY")
-#print pad("YELLOW SUBMARINE",20)
-#findEcbEncryptedCipherFile('p8.txt')
-#print decryptAESFile('p7.txt', 'YELLOW SUBMARINE')
-#print hammingDist('this is a test', 'wokka wokka!!!')
-#solveVigenereFile('p6.txt')
-#print repeatingKeyXorFile('p5.txt','ICE').encode('hex')
-#print repeatingKeyXor(repeatingKeyXor("Hello World, I'm Stuart",'pass'),'pass')
-#out = findSingleXorCipherInFile("p4.txt")
-#print str(out.score) + " " + out.text
-#out = singleXorDecrypt('1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736')
-#print out.text + ' ' + out.decodeByte
-## print hexxor('1c0111001f010100061a024b53535009181c','686974207468652062756c6c277320657965')
-#print hexToB64("49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d")
-'''
