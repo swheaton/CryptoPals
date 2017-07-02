@@ -185,22 +185,19 @@ def solveVigenereFile(fileName):
 #Set 1:7
 from Crypto.Cipher import AES
 
-def decryptAESNoPadding(message,key):
+def decryptAES_ECB_NoPadding(message,key):
     obj = AES.new(key)
     decrypted = obj.decrypt(message)
     return decrypted
 
-def decryptAES(message, key):
-    return decryptAESNoPadding(message,key)
+def decryptAES_ECB(message, key):
+    return checkAndStripPadding(decryptAES_ECB_NoPadding(message,key))
 
-    #TODO why checkAndStripPadding??
-    #return checkAndStripPadding(decryptAESNoPadding(message,key))
-
-def decryptAESFile(fileName, key):
+def decryptAES_ECB_File(fileName, key):
     with open(fileName) as file:
         message = "".join(file.readlines())
         message = message.decode('base64')
-        return decryptAES(message,key)
+        return decryptAES_ECB(message,key)
 
 #Set 1:8
 def isEcbEncryptedCipher(hexText): #takes in hex text
@@ -229,16 +226,15 @@ def padPKCS7(message, blockSize):
     diffCh = chr(diff)
     return message + diffCh * diff
 
-'''
+
 #Set 2:10
-def encryptAESNoPadding(message,key): #encrypts block without padding
+def encryptAES_ECB_NoPadding(message,key): #encrypts block without padding
     obj = AES.new(key)
     encrypted = obj.encrypt(message)
     return encrypted
 
-def encryptAES(message, key, needsPadding = True):
-    encrypted = encryptAESNoPadding(pad(message,len(message) + 16 - len(message) % 16),key)
-
+def encryptAES_ECB(message, key, needsPadding = True):
+    encrypted = encryptAES_ECB_NoPadding(padPKCS7(message, 16), key)
     return encrypted
 
 def encryptAES_CBC(message, initVector, key):
@@ -246,10 +242,10 @@ def encryptAES_CBC(message, initVector, key):
     prev = initVector
     ind = -16
     for ind in xrange(0,len(message)-15, 16):
-        prev = encryptAESNoPadding(xor(message[ind:(ind+16)],prev), key)
+        prev = encryptAES_ECB_NoPadding(xor(message[ind:(ind+16)],prev), key)
         cipherText += prev
     ind += 16
-    cipherText += encryptAESNoPadding(xor(pad(message[ind:],16),prev), key)
+    cipherText += encryptAES_ECB_NoPadding(xor(padPKCS7(message[ind:],16),prev), key)
 
     return cipherText
 
@@ -259,12 +255,11 @@ def decryptAES_CBC(message, initVector, key):
     ind = -16
     for ind in xrange(0,len(message)-16, 16):
         curr = message[ind:(ind+16)]
-        plainText += xor(decryptAESNoPadding(curr,key),prev)
+        plainText += xor(decryptAES_ECB_NoPadding(curr,key),prev)
         prev = curr
     ind += 16
-    curr = decryptAESNoPadding(message[ind:],key)
+    curr = decryptAES_ECB_NoPadding(message[ind:],key)
     plainText += xor(curr,prev)
-    #return plainText
     return checkAndStripPadding(plainText)
 
 def fileAES_CBC(fileName, initVector, key, encDec):
@@ -275,7 +270,7 @@ def fileAES_CBC(fileName, initVector, key, encDec):
             return encryptAES_CBC(message,initVector,key)
         else:
             return decryptAES_CBC(message,initVector,key)
-
+'''
 #Set 2:11
 from os import urandom
 from random import randint
@@ -431,8 +426,9 @@ def byteEcbDecryptionRandPrefix():
 
     return
 
-
+'''
 #Set 2:15
+#Function defined in challenge 15, but used in previous functions retroactively, particularly AES encryption
 def checkAndStripPadding(message):
     padByte = message[len(message) - 1]
     padConvert = ord(padByte)
@@ -442,6 +438,8 @@ def checkAndStripPadding(message):
     else:
         raise AssertionError
     return message
+
+'''
 
 #Set 2:16
 fixedIv = urandom(16)

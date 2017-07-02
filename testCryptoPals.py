@@ -53,12 +53,12 @@ class TestSet1(unittest.TestCase):
         #print solved[1] #Uncomment to print the whole decrypted text
         
     def test_challenge7(self):
-        decryptedFile = CryptoStu.decryptAESFile("files/p7.txt", "YELLOW SUBMARINE")
+        decryptedFile = CryptoStu.decryptAES_ECB_File("files/p7.txt", "YELLOW SUBMARINE")
         self.assertNotEqual(decryptedFile.find("Play that funky music white boy"), -1)
         self.assertNotEqual(decryptedFile.find("I'm back and I'm ringin' the bell"), -1)
         #print decryptedFile #Uncomment to print the whole decrypted text
 
-    def test_challenge9(self):
+    def test_challenge8(self):
         blah = 1
         ecbEncryptedCiphers = CryptoStu.findEcbEncryptedCipherFile("files/p8.txt")
         self.assertEqual(len(ecbEncryptedCiphers), 1)
@@ -77,7 +77,35 @@ class TestSet2(unittest.TestCase):
         padded = CryptoStu.padPKCS7("12345678", 5)
         self.assertEqual(padded, "12345678\x02\x02")
         
+    def test_challenge10(self):
+        #The encrypted file from the challenge
+        decrypted = CryptoStu.fileAES_CBC("files/p10.txt", "\x00" * 16, "YELLOW SUBMARINE", "dec")
+        self.assertNotEqual(decrypted.find("Play that funky music white boy"), -1)
+        self.assertNotEqual(decrypted.find("Vanilla's on the mike, man I'm not lazy."), -1)
+        #print decrypted #Uncomment to print decrypted file
         
+        #Test something that is exactly 16 bytes
+        text = "1234567812345678"
+        iv = "8765432187654321"
+        key = "YELLOW SUBMARINE"
+        self.assertEqual(CryptoStu.decryptAES_CBC(CryptoStu.encryptAES_CBC(text, iv, key), iv, key), text)
+        
+        #Test something less than 16 bytes (12)
+        text = "TESTTESTTEST"
+        iv = "8765432187654321"
+        key = "YELLOW SUBMARINE"
+        self.assertEqual(CryptoStu.decryptAES_CBC(CryptoStu.encryptAES_CBC(text, iv, key), iv, key), text)
+        
+        #Test something more than 16 bytes (20)
+        text = "TESTTESTTESTTESTTEST"
+        iv = "8765432187654321"
+        key = "YELLOW SUBMARINE"
+        self.assertEqual(CryptoStu.decryptAES_CBC(CryptoStu.encryptAES_CBC(text, iv, key), iv, key), text)
+        
+    def test_challenge15(self):
+        self.assertEqual(CryptoStu.checkAndStripPadding("ICE ICE BABY\x04\x04\x04\x04"), "ICE ICE BABY")
+        self.assertRaises(AssertionError, CryptoStu.checkAndStripPadding, "ICE ICE BABY\x05\x05\x05\x05")
+        self.assertRaises(AssertionError, CryptoStu.checkAndStripPadding, "ICE ICE BABY\x01\x02\x03\x04")
 
 
 if __name__ == '__main__':
