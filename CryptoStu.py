@@ -671,7 +671,6 @@ def AES_CTR(message,key,nonce):
         crypted += xor(message[ind:ind+16], xorBlock)
     return crypted
 
-
 #Set 3:19 - poor substitution cracking of AES .... I don't wanna do this
 #TODO
 
@@ -860,3 +859,22 @@ def determineMTCurrTime(token, amtCheckBackwards):
     return -1
 
 #Set 4:25
+#Edits a ciphertext that has used fixedKey as the key for AES CTR mode, by replacing
+#   ciphertext at the offset with encrypted version of newText
+fixedNonce = 8675309
+
+def generateCtrCipherText(plaintext):
+    return AES_CTR(plaintext, fixedKey, fixedNonce)
+
+
+def editCtrCiphertext(ciphertext, offset, newText):
+    newCiphertext = AES_CTR('\x00' * offset + newText, fixedKey, fixedNonce)
+    resultCiphertext = ciphertext[0:offset] + newCiphertext[offset:]
+    return resultCiphertext
+    
+#Crack the edit() function by simply passing in the ciphertext you received
+#   as the "new text". AES_CTR will blindly xor the ciphertext with the key
+#   stream, giving us the plain text
+def crackCtrEdit(ciphertext):
+    return editCtrCiphertext(ciphertext, 0, ciphertext)
+    

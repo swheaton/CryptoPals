@@ -219,6 +219,12 @@ class TestSet3(unittest.TestCase):
         token = passwordReset[1]
         self.assertEqual(CryptoStu.determineMTCurrTime(token, 100), originalSeed)
 
-    
+class TestSet4(unittest.TestCase):
+    def test_challenge25(self):
+        secretText = "Hello, this is a test of a decent-sized stream. We will test cracking CTR mode of AES if we are allowed to edit!"
+        ciphertext = CryptoStu.generateCtrCipherText(secretText)
+        plaintext = CryptoStu.crackCtrEdit(ciphertext)
+        self.assertEqual(plaintext, secretText)
+        
 if __name__ == '__main__':
     unittest.main()
