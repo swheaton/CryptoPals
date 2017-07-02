@@ -102,6 +102,12 @@ class TestSet2(unittest.TestCase):
         key = "YELLOW SUBMARINE"
         self.assertEqual(CryptoStu.decryptAES_CBC(CryptoStu.encryptAES_CBC(text, iv, key), iv, key), text)
         
+    def test_challenge11(self):
+        #Try it 100 times, make sure it works
+        for i in range(0, 100):
+            oracleResult = CryptoStu.determineAESMode(CryptoStu.randomEcbCbcOracle, 16)
+            self.assertEqual(oracleResult[0], oracleResult[1])
+        
     def test_challenge15(self):
         self.assertEqual(CryptoStu.checkAndStripPadding("ICE ICE BABY\x04\x04\x04\x04"), "ICE ICE BABY")
         self.assertRaises(AssertionError, CryptoStu.checkAndStripPadding, "ICE ICE BABY\x05\x05\x05\x05")

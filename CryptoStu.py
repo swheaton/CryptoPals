@@ -270,36 +270,41 @@ def fileAES_CBC(fileName, initVector, key, encDec):
             return encryptAES_CBC(message,initVector,key)
         else:
             return decryptAES_CBC(message,initVector,key)
-'''
+
 #Set 2:11
 from os import urandom
 from random import randint
 from math import ceil
-def ebc_cbc_encryption(message):
+def randomEcbCbcOracle(message):
+       #Generate a random 16-byte key
        randomKey = urandom(16)
-       numBefore = randint(2,5)
-       numAfter = randint(2,5)
+
+       #Append 5-10 bytes before and after the message
+       numBefore = randint(5,10)
+       numAfter = randint(5,10)
        actual = urandom(numBefore) + message + urandom(numAfter)
+       
+       #Encrypt using ECB mode vs CBC mode with 50/50 probability
        choice = 'ecb' if randint(0,1) == 0 else 'cbc'
        if choice == 'ecb':
-           print 'ecb used'
-           ciphertext = encryptAES(actual,randomKey)
+           ciphertext = encryptAES_ECB(actual,randomKey)
        else:
-           print 'cbc used'
            initVector = urandom(16)
            ciphertext = encryptAES_CBC(actual,initVector,randomKey)
-       return ciphertext
+       return (choice, ciphertext)
 
-def determineMode(encryptionFunc, prefLen = 0):
+#Determines whether an encryption function is using ECB or CBC mode of AES
+def determineAESMode(encryptionFunc, preferredLen = 0):
     myMessage = 'A' * 48
-    ciphertext = encryptionFunc(myMessage)
-    firstGoodBlock = int (ceil(prefLen / 16.0)) * 16
+    oracleResult = encryptionFunc(myMessage)
+    ciphertext = oracleResult[1]
+    firstGoodBlock = int (ceil(preferredLen / 16.0)) * 16
     if ciphertext[firstGoodBlock:firstGoodBlock+16] == ciphertext[firstGoodBlock+16:firstGoodBlock + 2*16]:
         mode = 'ecb'
     else:
         mode = 'cbc'
-    return mode
-
+    return (oracleResult[0], mode)
+'''
 #Set 2:12
 fixedKey = urandom(16)
 
