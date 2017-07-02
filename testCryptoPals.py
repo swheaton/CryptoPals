@@ -64,6 +64,21 @@ class TestSet1(unittest.TestCase):
         self.assertEqual(len(ecbEncryptedCiphers), 1)
         #print ecbEncryptedCiphers #Uncomment to print the ciphers in the file that are encrypted with ecb
 
+class TestSet2(unittest.TestCase):
+    
+    def test_challenge9(self):
+        #Border case
+        padded = CryptoStu.padPKCS7("1234", 4)
+        self.assertEqual(padded, "1234\x04\x04\x04\x04")
+        #Case in the challenge
+        padded = CryptoStu.padPKCS7("YELLOW SUBMARINE", 20)
+        self.assertEqual(padded, "YELLOW SUBMARINE\x04\x04\x04\x04")
+        #Message longer than block size
+        padded = CryptoStu.padPKCS7("12345678", 5)
+        self.assertEqual(padded, "12345678\x02\x02")
+        
+        
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -220,14 +220,16 @@ def findEcbEncryptedCipherFile(fileName):
                 encryptedCiphers.append(line)
             idx += 1
     return encryptedCiphers
-'''
+
 #Set 2:9
-def pad(message, length): #pads message out to length number of bytes with pkcs #7 method
-    diff = length - len(message)
-    assert diff >= 0 and diff < 256
+#pads message out to have a size that is a multiple of blockSize, using PKCS7
+def padPKCS7(message, blockSize):
+    assert blockSize < 256
+    diff = blockSize - (len(message) % blockSize)
     diffCh = chr(diff)
     return message + diffCh * diff
 
+'''
 #Set 2:10
 def encryptAESNoPadding(message,key): #encrypts block without padding
     obj = AES.new(key)
