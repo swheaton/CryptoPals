@@ -139,6 +139,9 @@ class TestSet2(unittest.TestCase):
         self.assertEqual(CryptoStu.checkAndStripPadding("ICE ICE BABY\x04\x04\x04\x04"), "ICE ICE BABY")
         self.assertRaises(AssertionError, CryptoStu.checkAndStripPadding, "ICE ICE BABY\x05\x05\x05\x05")
         self.assertRaises(AssertionError, CryptoStu.checkAndStripPadding, "ICE ICE BABY\x01\x02\x03\x04")
+        
+    def test_challenge16(self):
+        self.assertTrue(CryptoStu.decryptAndConfirmAdmin(CryptoStu.cbcBitFlip()))
 
 
 if __name__ == '__main__':

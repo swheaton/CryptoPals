@@ -538,24 +538,26 @@ def checkAndStripPadding(message):
         raise AssertionError
     return message
 
-'''
-
 #Set 2:16
 fixedIv = urandom(16)
+#Encrypt user data, with some stuff prepended and appended
 def encryptUserData(data):
     prefix = 'comment1=cooking%20MCs;userdata='
     suffix = ';comment2=%20like%2-a%20pound%20of%20bacon'
 
-    #remove ; and =
+    #quote out ; and = characters
     data = data.replace(';','%3B').replace('=','%3D')
     message = prefix + data + suffix
     return encryptAES_CBC(message,fixedIv,fixedKey)
 
+#Decrypts ciphertext, and returns true if the key value pair admin=true exists
+#   in the decrypted data. It is not possible to get this just from encryptUserData,
+#   but if we break the crypto we can!
 def decryptAndConfirmAdmin(ciphertext):
     decrypted = decryptAES_CBC(ciphertext,fixedIv,fixedKey)
-    print decrypted
     return decrypted.find(';admin=true;') != -1
 
+#Perform threeway byte-wise Xor of strings
 def threewayXor(encryptedString,targetString,replacedString):
     out = ''
     if len(encryptedString) != len(targetString) or len(targetString) != len(replacedString):
@@ -565,17 +567,24 @@ def threewayXor(encryptedString,targetString,replacedString):
     return out
 
 def cbcBitFlip():
+    #The prefix is conveniently 32 bytes. So if we send in 16 A's as userData, block 3
+    #   will contain AES_ECB_Encrypt('AAAAAAAAAAAAAAAA' ^ block2).
     test = encryptUserData('A' * 16)
     myBlock = test[32:48]
+    
+    #Flipping a bit in cipher text completely scrambles the block, but produces an identical
+    #   bit flip in the next block, due to the xor property of block chaining
+    #   So, since we know the next block starts with ';comment2=%2', let's xor our data block
+    #   with the target ';admin=true;' and the known text. This is because block 4 will be
+    #   xor'ed with the current block. So if 3-way xor it with the known text, that will be
+    #   cancelled out, and replaced with our target. This will jumble up the current block
+    #   but the next one (block 4) will now decrypt with the target text in it
     myBlock = threewayXor(myBlock[0:12],';admin=true;',';comment2=%2') + myBlock[12:]
 
     craftedMessage = test[0:32]+myBlock+test[48:]
+    return craftedMessage
 
-    if decryptAndConfirmAdmin(craftedMessage):
-        print 'yay admin'
-    else:
-        print 'boo no admin'
-
+'''
 #Set 3:17
 #random strings
 stringList=['MDAwMDAwTm93IHRoYXQgdGhlIHBhcnR5IGlzIGp1bXBpbmc=',
