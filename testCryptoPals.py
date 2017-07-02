@@ -164,6 +164,16 @@ class TestSet3(unittest.TestCase):
         #for line in decryptedLines:
         #    print line
         #print decryptedLines #Uncomment to print decrypted lines from the file
+        
+    #Not sure how to test the MT besides making sure that given the same seed, it gives us the same outputs
+    def test_challenge21(self):
+        mt = CryptoStu.MT()
+        mt.initMT(1234567)
+        pseudoRandomNums = [mt.extractNumber() for i in xrange(25)]
+        mt.initMT(1234567)
+        pseudoRandomNums2 = [mt.extractNumber() for i in xrange(25)]
+        self.assertEqual(pseudoRandomNums, pseudoRandomNums2)
+        
 
     
 if __name__ == '__main__':

@@ -698,46 +698,45 @@ def createAesCtrEncryptions(fileName):
         lines = file.readlines()
         return [AES_CTR(line.decode('base64'), fixedKey, 0) for line in lines]
 
-'''
 #Set 3:21 - Mersenne Twister
-mtIndex = 0
-mtState = [0 for i in xrange(624)]
+#Implemented as found on Wikipedia.
+class MT:
+    def __init__(self):
+        self.mtIndex = 0
+        self.mtState = [0 for i in xrange(624)]
 
-def initMT(seed):
-    global mtIndex
-    global mtState
-    mtIndex = 0
-    mtState[0] = seed
-    for i in xrange(1,624):
-        mtState[i] = (1812433253 * (mtState[i-1] ^ (mtState[i-1] >> 30)) + i) & 0xffffffff
+    def initMT(self, seed):
+        self.mtIndex = 0
+        self.mtState[0] = seed
+        for i in xrange(1,624):
+            self.mtState[i] = (1812433253 * (self.mtState[i-1] ^ (self.mtState[i-1] >> 30)) + i) & 0xffffffff
+    
+    def __temper(self, y):
+        y ^= y >> 11
+        y ^= (y << 7) & 2636928640
+        y ^= (y << 15) & 4022730753
+        y ^= y >> 18
+        return y
+    
+    def extractNumber(self):
+        if self.mtIndex == 0:
+            self.__generateNumbers()
+    
+        y = self.mtState[self.mtIndex]
+        y = self.__temper(y)
+    
+        self.mtIndex = (self.mtIndex + 1) % 624
+        return y
+    
+    def __generateNumbers(self):
+        global mtState
+        for i in xrange(624):
+            y = (self.mtState[i] & 0x80000000) + (self.mtState[(i+1) % 624] & 0x7fffffff)
+            self.mtState[i] = self.mtState[(i+397) % 624] ^ (y >> 1)
+            if y % 2 != 0:
+                self.mtState[i] ^= 2567483615
 
-def temper(y):
-    y ^= y >> 11
-    y ^= (y << 7) & 2636928640
-    y ^= (y << 15) & 4022730753
-    y ^= y >> 18
-    return y
-
-def extractNumber():
-    global mtIndex
-    global mtState
-    if mtIndex == 0:
-        generateNumbers()
-
-    y = mtState[mtIndex]
-    y = temper(y)
-
-    mtIndex = (mtIndex + 1) % 624
-    return y
-
-def generateNumbers():
-    global mtState
-    for i in xrange(624):
-        y = (mtState[i] & 0x80000000) + (mtState[(i+1) % 624] & 0x7fffffff)
-        mtState[i] = mtState[(i+397) % 624] ^ (y >> 1)
-        if y % 2 != 0:
-            mtState[i] ^= 2567483615
-
+'''
 #Set 3:22
 import time
 def crackMT():
