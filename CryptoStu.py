@@ -878,3 +878,90 @@ def editCtrCiphertext(ciphertext, offset, newText):
 def crackCtrEdit(ciphertext):
     return editCtrCiphertext(ciphertext, 0, ciphertext)
     
+#Set 4:26 TODO
+
+#Set 4:27 TODO
+
+#Set 4:28
+#Implemented sha1 hash as per RFC at https://tools.ietf.org/html/rfc3174
+def sha1Pad(message):
+    BLOCK_SIZE = 16 *4 #16-word block = 64 bytes
+    messageSize = len(message)
+    
+    #If we have room for 8-byte length and a 0x08 byte, at least...
+    numBytesRemaining = BLOCK_SIZE - (messageSize % BLOCK_SIZE)
+
+    #At least 9 bytes remaining. Good, we can pad using this block
+    if numBytesRemaining >= 9:
+        #Add 0x80, then 0x00 (repeatedly) until there are 8 bytes left
+        message += '\x80' + '\x00' * (numBytesRemaining - 9)
+    #We cannot pad using this block only. Must use next one too
+    else:
+        #Add 0x80, then 0x00 (repeatedly) to fill up this block. Then fill up the
+        #   next block with 0x00 until there are 8 bytes left
+        message += '\x80' + '\x00' * (numBytesRemaining + 55)
+
+    #Add big-endian 8-byte original message length
+    message += struct.pack('>Q', messageSize * 8)
+    assert(len(message) % BLOCK_SIZE == 0)
+
+    return message
+    
+def circularShiftLeft(word, numShifts):
+    return ((word << numShifts) | (word >> (32-numShifts))) & 0xffffffff
+
+from math import trunc
+def sha1Hash(message):
+    message = sha1Pad(message)
+
+    BLOCK_SIZE = 16 * 4 #16-word block = 64 bytes
+    W = [0 for i in xrange(80)]
+    intermediateHash = [0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0]
+    constant = [0x5A827999, 0x6ED9EBA1, 0x8F1BBCDC, 0xCA62C1D6]
+
+    #Iterate through each 16-word block (64 bytes) M(i)
+    for i in xrange(0, len(message), BLOCK_SIZE):
+        messageBlock = message[i:i+BLOCK_SIZE]
+
+        #Initialize W[0]-W[15] to be messageBlock[0]-messageBlock[15]
+        for t in xrange(16):
+            W[t] = struct.unpack('>I', messageBlock[t*4:t*4+4])[0]
+
+        #Initialize W[16]-W[79] to something else
+        for t in xrange(16, 80):
+            W[t] = circularShiftLeft(W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16], 1)
+        A = intermediateHash[0]
+        B = intermediateHash[1]
+        C = intermediateHash[2]
+        D = intermediateHash[3]
+        E = intermediateHash[4]
+        
+        for t in xrange(80):
+            ft = 0
+            
+            if t < 20:
+                ft = (B & C) | ((~B) & D)
+            elif t < 40:
+                ft = B ^ C ^ D
+            elif t < 60:
+                ft = (B & C) | (B & D) | (C & D)
+            else:
+                ft = B ^ C ^ D
+            temp = ((((circularShiftLeft(A, 5) + ft) % 2**32 + E) % 2**32 + W[t]) % 2**32 + constant[trunc(t/20)]) % 2**32
+            E = D
+            D = C
+            C = circularShiftLeft(B, 30)
+            B = A
+            A = temp
+        
+        intermediateHash[0] = (intermediateHash[0] + A) % 2**32
+        intermediateHash[1] = (intermediateHash[1] + B) % 2**32
+        intermediateHash[2] = (intermediateHash[2] + C) % 2**32
+        intermediateHash[3] = (intermediateHash[3] + D) % 2**32
+        intermediateHash[4] = (intermediateHash[4] + E) % 2**32
+    
+    out = "".join([hex(word).replace("0x", "").replace("L", "") for word in intermediateHash])
+    return out
+    
+def hmacSha1(key, message):
+    return sha1Hash(key + message)

@@ -1,3 +1,6 @@
+*Version
+Python 2.7
+
 *Running
 <pre>python -m unittest discover</pre>
 OR run the python script normally

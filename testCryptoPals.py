@@ -219,6 +219,7 @@ class TestSet3(unittest.TestCase):
         token = passwordReset[1]
         self.assertEqual(CryptoStu.determineMTCurrTime(token, 100), originalSeed)
 
+import hashlib
 class TestSet4(unittest.TestCase):
     def test_challenge25(self):
         secretText = "Hello, this is a test of a decent-sized stream. We will test cracking CTR mode of AES if we are allowed to edit!"
@@ -226,5 +227,41 @@ class TestSet4(unittest.TestCase):
         plaintext = CryptoStu.crackCtrEdit(ciphertext)
         self.assertEqual(plaintext, secretText)
         
+    def test_challenge26_sha1pad(self):
+        #Test padding function first
+        #Test from the RFC
+        message = "6162636465".decode('hex')
+        paddedMessage = CryptoStu.sha1Pad(message)
+        self.assertEqual(paddedMessage.encode('hex'), "61626364658000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000028"
+)
+        #9 bytes left, we can still use up this block, albeit with no 0's
+        message = "1234567812345678123456781234567812345678123456781234567"
+        paddedMessage = CryptoStu.sha1Pad(message)
+        self.assertEqual(len(paddedMessage), 64)
+        self.assertEqual(int(paddedMessage[-8:].encode('hex'), 16), 55 * 8)
+
+        #Only 8 bytes left, have to use the next block
+        message = "12345678123456781234567812345678123456781234567812345678"
+        paddedMessage = CryptoStu.sha1Pad(message)
+        self.assertEqual(len(paddedMessage), 128)
+        self.assertEqual(int(paddedMessage[-8:].encode('hex'), 16), 56 * 8)
+        
+        #0 bytes left, make sure we do end up using the next block
+        message = "1234567812345678123456781234567812345678123456781234567812345678"
+        paddedMessage = CryptoStu.sha1Pad(message)
+        self.assertEqual(len(paddedMessage), 128)
+        self.assertEqual(int(paddedMessage[-8:].encode('hex'), 16), 64 * 8)
+
+    def test_challenge26_sha1(self):
+        #Test circularShiftLeft function first
+        self.assertEqual(CryptoStu.circularShiftLeft(0xabcd0000, 16), 0x0000abcd)
+        
+        #Test my hash against Python's hashlib
+        self.assertEqual(CryptoStu.sha1Hash(""), hashlib.sha1("").hexdigest())
+        self.assertEqual(CryptoStu.sha1Hash("hello"), hashlib.sha1("hello").hexdigest())
+        
+        #No need to test the hmac function, it just is what it is
+
+
 if __name__ == '__main__':
     unittest.main()
