@@ -32,67 +32,79 @@ import string
 from collections import namedtuple
 ScoreText = namedtuple('ScoreText','score text decodeByte decodeHex')
 
-#Character frequency in the English language, from http://en.algoritmy.net/article/40379/Letter-frequency-English
-#   This is a more updated link, if I ever care to make this function more accurate: http://norvig.com/mayzner.html"
+#Character frequency in the English language, from http://norvig.com/mayzner.html
 #   The link also has stats for letter positioning within a word, n-gram frequency, and n-gram positioning as well.
 charFreqList = [
-                8.167,#A
-                1.492,#B
-                2.782,#C
-                4.253,#D
-                12.702,#E
-                2.228,#F
-                2.015,#G
-                6.094,#H
-                6.996,#I
-                0.153,#J
-                0.772,#K
-                4.025,#L
-                2.406,#M
-                6.749,#N
-                7.507,#O
-                1.929,#P
-                0.095,#Q
-                5.987,#R
-                6.327,#S
-                9.056,#T
-                2.758,#U
-                0.978,#V
-                2.360,#W
-                0.150,#X
-                1.974,#Y
-                0.074#Z
+                8.041,#A
+                1.485,#B
+                3.344,#C
+                3.817,#D
+                12.492,#E
+                2.403,#F
+                1.869,#G
+                5.053,#H
+                7.569,#I
+                0.159,#J
+                0.541,#K
+                4.069,#L
+                2.512,#M
+                7.234,#N
+                7.641,#O
+                2.136,#P
+                0.120,#Q
+                6.269,#R
+                6.513,#S
+                9.276,#T
+                2.730,#U
+                1.053,#V
+                1.676,#W
+                0.235,#X
+                1.665,#Y
+                0.090,#Z
                 ]
                 
 #Build english frequency map for each character, all lower case
-#TODO include punctuation, and penalize nonprintable characters
 engCharFreq = [0 for i in xrange(256)]
 for ind, freq in enumerate(charFreqList):
     engCharFreq[ind+ord('a')] = freq
-#Also add frequency of spaces, which is approximately one every 5.1 characters, or ~19%
-engCharFreq[ord(' ')] = 100.0 / 5.1
+#Also add frequency of spaces, which is approximately one every 4.79 characters
+engCharFreq[ord(' ')] = 100.0 / 4.79
 
-#finds variance from typical english text
+#Guess at frequencies of punctuation using ordering at this site: http://mdickens.me/typing/theory-of-letter-frequency.html
+engCharFreq[ord(',')] = 2.003
+engCharFreq[ord('.')] = 1.269
+engCharFreq[ord('\'')] = 0.388
+engCharFreq[ord('"')] = 0.288
+engCharFreq[ord('.')] = 0.288
+engCharFreq[ord('!')] = 0.188
+engCharFreq[ord('-')] = 0.188
+for i in xrange(10):
+    engCharFreq[i+ord('0')] = 0.088
+    
+from math import log
+
+#finds "probability" that text is English. Uses sum(log(freq(character))) for each character
 def varianceFromEnglish(text):
-    variance = 0.0
+    variance = 1.0
     textCharFreq = [0 for i in xrange(256)]
     
-    #TODO make nonprintable characters create huge variances
-
     # Create frequency map for this piece of text, so we can compare to english
     for char in text:
-        textCharFreq[ord(char.lower())] += 100.0 / len(text)
-
-    # Diff frequencies for text with the one for english, and square the difference
-    for ind in xrange(len(textCharFreq)):
-        variance += (textCharFreq[ind] - engCharFreq[ind]) ** 2
+        if engCharFreq[ord(char.lower())] > 0.0:
+            variance += log(engCharFreq[ord(char.lower())]/100.0)
+        #Nonprintables get a VERY small probability
+        elif char not in string.printable:
+            variance -=1000
+        #Printables that we don't have frequencies for, just get a small probability
+        else:
+            variance += log(0.000001)
 
     return variance
 
 #Finds most likely candidate for decrypted single-byte xor
 #   useNonPrintable is true if we assume the key will not be a nonprintable characters
 def singleXorDecrypt(hexVal, useNonPrintable=True):
-    bestScore = ScoreText(score=sys.float_info.max, text = '',decodeByte='', decodeHex='')
+    bestScore = ScoreText(score=float('-inf'), text = '',decodeByte='', decodeHex='')
 
     # Try all characters
     for ind in xrange(256):
@@ -105,7 +117,8 @@ def singleXorDecrypt(hexVal, useNonPrintable=True):
         score = varianceFromEnglish(result.decode('hex'))
 
         # Store best score so far
-        if(score < bestScore.score):
+        if(score > bestScore.score):
+            #print "hello"
             bestScore = ScoreText(score, result.decode('hex'), decodeByte=chr(ind), decodeHex=hex(ind))
 
     return bestScore
@@ -844,7 +857,6 @@ def breakMTKnownText(encrypted):
 def genPasswordResetToken():
     mt = MT()
     currTime = int(time.time())
-    print "**", currTime
     mt.initMT(currTime)
     time.sleep(10)
     return (currTime, str(mt.extractNumber()))
@@ -939,6 +951,7 @@ def sha1Hash(message):
         for t in xrange(80):
             ft = 0
             
+            #Calculate the f(t; B,C,D), which is based on t
             if t < 20:
                 ft = (B & C) | ((~B) & D)
             elif t < 40:
@@ -947,6 +960,8 @@ def sha1Hash(message):
                 ft = (B & C) | (B & D) | (C & D)
             else:
                 ft = B ^ C ^ D
+                
+            #Temp value, then update the letter registers
             temp = ((((circularShiftLeft(A, 5) + ft) % 2**32 + E) % 2**32 + W[t]) % 2**32 + constant[trunc(t/20)]) % 2**32
             E = D
             D = C
@@ -954,12 +969,14 @@ def sha1Hash(message):
             B = A
             A = temp
         
+        #Now update intermediateHash
         intermediateHash[0] = (intermediateHash[0] + A) % 2**32
         intermediateHash[1] = (intermediateHash[1] + B) % 2**32
         intermediateHash[2] = (intermediateHash[2] + C) % 2**32
         intermediateHash[3] = (intermediateHash[3] + D) % 2**32
         intermediateHash[4] = (intermediateHash[4] + E) % 2**32
     
+    #Intermediate hash values are the final at the end
     out = "".join([hex(word).replace("0x", "").replace("L", "") for word in intermediateHash])
     return out
     

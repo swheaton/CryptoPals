@@ -157,13 +157,14 @@ class TestSet3(unittest.TestCase):
         nonce = 123456789
         self.assertEqual(CryptoStu.AES_CTR(CryptoStu.AES_CTR(text, key, nonce), key, nonce), text)
     
-    #TODO fix first letter of challenge 20!
     def test_challenge20(self):
         decryptedLines = CryptoStu.crackCTR(CryptoStu.createAesCtrEncryptions("files/p20.txt"))
+        self.assertTrue("Ya tremble like a alcoholic, muscles tighten up / Wha" in decryptedLines)
+        self.assertTrue("Turn down the bass down / And let the beat just keep " in decryptedLines)
         #print '\n'
         #for line in decryptedLines:
         #    print line
-        #print decryptedLines #Uncomment to print decrypted lines from the file
+        #Uncomment above to print decrypted lines from the file
         
     #Not sure how to test the MT besides making sure that given the same seed, it gives us the same outputs
     def test_challenge21(self):
