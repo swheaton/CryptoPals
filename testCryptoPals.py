@@ -258,10 +258,14 @@ class TestSet4(unittest.TestCase):
         self.assertEqual(CryptoStu.circularShiftLeft(0xabcd0000, 16), 0x0000abcd)
         
         #Test my hash against Python's hashlib
-        self.assertEqual(CryptoStu.sha1Hash(""), hashlib.sha1("").hexdigest())
-        self.assertEqual(CryptoStu.sha1Hash("hello"), hashlib.sha1("hello").hexdigest())
-        
+        self.assertEqual(CryptoStu.sha1Hash(""), hashlib.sha1("").digest())
+        self.assertEqual(CryptoStu.sha1Hash("hello"), hashlib.sha1("hello").digest())
+        self.assertEqual(CryptoStu.sha1Hash("trying to get it to fail!"), hashlib.sha1("trying to get it to fail!").digest())
+
         #No need to test the hmac function, it just is what it is
+        
+    def test_challenge27(self):
+        self.assertTrue(CryptoStu.sha1LengthExtensionAttack())
 
 
 if __name__ == '__main__':

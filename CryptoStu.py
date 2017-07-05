@@ -78,6 +78,8 @@ engCharFreq[ord('"')] = 0.288
 engCharFreq[ord('.')] = 0.288
 engCharFreq[ord('!')] = 0.188
 engCharFreq[ord('-')] = 0.188
+
+#Totally guess at frequency of numbers
 for i in xrange(10):
     engCharFreq[i+ord('0')] = 0.088
     
@@ -90,6 +92,7 @@ def varianceFromEnglish(text):
     
     # Create frequency map for this piece of text, so we can compare to english
     for char in text:
+        #If we've documented the character frequency, use it
         if engCharFreq[ord(char.lower())] > 0.0:
             variance += log(engCharFreq[ord(char.lower())]/100.0)
         #Nonprintables get a VERY small probability
@@ -896,7 +899,7 @@ def crackCtrEdit(ciphertext):
 
 #Set 4:28
 #Implemented sha1 hash as per RFC at https://tools.ietf.org/html/rfc3174
-def sha1Pad(message):
+def sha1Pad(message, overrideMessageSize = -1):
     BLOCK_SIZE = 16 *4 #16-word block = 64 bytes
     messageSize = len(message)
     
@@ -914,7 +917,7 @@ def sha1Pad(message):
         message += '\x80' + '\x00' * (numBytesRemaining + 55)
 
     #Add big-endian 8-byte original message length
-    message += struct.pack('>Q', messageSize * 8)
+    message += struct.pack('>Q', (overrideMessageSize if overrideMessageSize > 0 else messageSize) * 8)
     assert(len(message) % BLOCK_SIZE == 0)
 
     return message
@@ -923,12 +926,15 @@ def circularShiftLeft(word, numShifts):
     return ((word << numShifts) | (word >> (32-numShifts))) & 0xffffffff
 
 from math import trunc
-def sha1Hash(message):
-    message = sha1Pad(message)
+
+def sha1Hash(message, overrideMessageSize = -1):
+    return sha1Hash_intermediate(message, [0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0])
+
+def sha1Hash_intermediate(message, intermediateHash, overrideMessageSize = -1):
+    message = sha1Pad(message, overrideMessageSize)
 
     BLOCK_SIZE = 16 * 4 #16-word block = 64 bytes
     W = [0 for i in xrange(80)]
-    intermediateHash = [0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0]
     constant = [0x5A827999, 0x6ED9EBA1, 0x8F1BBCDC, 0xCA62C1D6]
 
     #Iterate through each 16-word block (64 bytes) M(i)
@@ -975,10 +981,39 @@ def sha1Hash(message):
         intermediateHash[2] = (intermediateHash[2] + C) % 2**32
         intermediateHash[3] = (intermediateHash[3] + D) % 2**32
         intermediateHash[4] = (intermediateHash[4] + E) % 2**32
-    
-    #Intermediate hash values are the final at the end
-    out = "".join([hex(word).replace("0x", "").replace("L", "") for word in intermediateHash])
+        
+    #Intermediate hash values are the final at the end. Pack them into a string
+    out = "".join([struct.pack('>I', word) for word in intermediateHash])
     return out
     
 def hmacSha1(key, message):
     return sha1Hash(key + message)
+    
+#Set 4:29
+#Verifies that message hmac's to hashVal when using fixedKey
+def verifyHash(message, hashVal):
+    return hmacSha1(fixedKey, message) == hashVal
+
+#Returns hash for the message we are allowed to know about
+def getKnownHash():
+    message = "comment1=cooking%20MCs;userdata=foo;comment2=%20like%20a%20pound%20of%20bacon"
+    return hmacSha1(fixedKey, message)
+
+def sha1LengthExtensionAttack():
+    #Extract out each of the 5 words in the hash
+    knownHash = getKnownHash()
+    wordLength = len(knownHash)/5
+    intermediateHash = list(struct.unpack('>IIIII', knownHash))
+
+    knownMessage = "comment1=cooking%20MCs;userdata=foo;comment2=%20like%20a%20pound%20of%20bacon"
+    #Now, use length extension to add admin privileges and get the hash
+    lengthExtendedHash = sha1Hash_intermediate(";admin=true", intermediateHash, 0x458/8)
+
+    #Guess that the key is size 16
+    sha1PaddedMessage = sha1Pad('\x00' * 16 + knownMessage)
+    
+    #Now concat knownMessage with pseudo-padding, then our attack
+    attackMessage = knownMessage + sha1PaddedMessage[len(knownMessage)+16:] + ";admin=true"
+
+    #Verify that we've forged the HMAC for attackMessage, which includes admin privileges!
+    return verifyHash(attackMessage, lengthExtendedHash)
