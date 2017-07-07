@@ -561,7 +561,7 @@ def encryptUserData(data):
     prefix = 'comment1=cooking%20MCs;userdata='
     suffix = ';comment2=%20like%2-a%20pound%20of%20bacon'
 
-    #quote out ; and = characters
+    #quote out ;and = characters
     data = data.replace(';','%3B').replace('=','%3D')
     message = prefix + data + suffix
     return encryptAES_CBC(message,fixedIv,fixedKey)
@@ -899,7 +899,7 @@ def crackCtrEdit(ciphertext):
 
 #Set 4:28
 #Implemented sha1 hash as per RFC at https://tools.ietf.org/html/rfc3174
-def sha1Pad(message, overrideMessageSize = -1):
+def MDPad(message, overrideMessageSize = -1, littleEndian=False):
     BLOCK_SIZE = 16 *4 #16-word block = 64 bytes
     messageSize = len(message)
     
@@ -917,12 +917,13 @@ def sha1Pad(message, overrideMessageSize = -1):
         message += '\x80' + '\x00' * (numBytesRemaining + 55)
 
     #Add big-endian 8-byte original message length
-    message += struct.pack('>Q', (overrideMessageSize if overrideMessageSize > 0 else messageSize) * 8)
+    fmt = '>Q' if not littleEndian else '<Q'
+    message += struct.pack(fmt, (overrideMessageSize if overrideMessageSize > 0 else messageSize) * 8)
     assert(len(message) % BLOCK_SIZE == 0)
 
     return message
     
-def circularShiftLeft(word, numShifts):
+def rotateLeft(word, numShifts):
     return ((word << numShifts) | (word >> (32-numShifts))) & 0xffffffff
 
 from math import trunc
@@ -931,7 +932,7 @@ def sha1Hash(message, overrideMessageSize = -1):
     return sha1Hash_intermediate(message, [0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0])
 
 def sha1Hash_intermediate(message, intermediateHash, overrideMessageSize = -1):
-    message = sha1Pad(message, overrideMessageSize)
+    message = MDPad(message, overrideMessageSize)
 
     BLOCK_SIZE = 16 * 4 #16-word block = 64 bytes
     W = [0 for i in xrange(80)]
@@ -947,7 +948,7 @@ def sha1Hash_intermediate(message, intermediateHash, overrideMessageSize = -1):
 
         #Initialize W[16]-W[79] to something else
         for t in xrange(16, 80):
-            W[t] = circularShiftLeft(W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16], 1)
+            W[t] = rotateLeft(W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16], 1)
         A = intermediateHash[0]
         B = intermediateHash[1]
         C = intermediateHash[2]
@@ -957,7 +958,7 @@ def sha1Hash_intermediate(message, intermediateHash, overrideMessageSize = -1):
         for t in xrange(80):
             ft = 0
             
-            #Calculate the f(t; B,C,D), which is based on t
+            #Calculate the f(t;B,C,D), which is based on t
             if t < 20:
                 ft = (B & C) | ((~B) & D)
             elif t < 40:
@@ -968,10 +969,10 @@ def sha1Hash_intermediate(message, intermediateHash, overrideMessageSize = -1):
                 ft = B ^ C ^ D
                 
             #Temp value, then update the letter registers
-            temp = ((((circularShiftLeft(A, 5) + ft) % 2**32 + E) % 2**32 + W[t]) % 2**32 + constant[trunc(t/20)]) % 2**32
+            temp = ((((rotateLeft(A, 5) + ft) % 2**32 + E) % 2**32 + W[t]) % 2**32 + constant[trunc(t/20)]) % 2**32
             E = D
             D = C
-            C = circularShiftLeft(B, 30)
+            C = rotateLeft(B, 30)
             B = A
             A = temp
         
@@ -999,6 +1000,8 @@ def getKnownHash():
     message = "comment1=cooking%20MCs;userdata=foo;comment2=%20like%20a%20pound%20of%20bacon"
     return hmacSha1(fixedKey, message)
 
+#Performs length extension attack to forge a message with ;admin=true in it, which has been
+#   hmac'ed by fixedKey
 def sha1LengthExtensionAttack():
     #Extract out each of the 5 words in the hash
     knownHash = getKnownHash()
@@ -1010,10 +1013,94 @@ def sha1LengthExtensionAttack():
     lengthExtendedHash = sha1Hash_intermediate(";admin=true", intermediateHash, 0x458/8)
 
     #Guess that the key is size 16
-    sha1PaddedMessage = sha1Pad('\x00' * 16 + knownMessage)
+    MDPaddedMessage = MDPad('\x00' * 16 + knownMessage)
     
     #Now concat knownMessage with pseudo-padding, then our attack
-    attackMessage = knownMessage + sha1PaddedMessage[len(knownMessage)+16:] + ";admin=true"
+    attackMessage = knownMessage + MDPaddedMessage[len(knownMessage)+16:] + ";admin=true"
 
     #Verify that we've forged the HMAC for attackMessage, which includes admin privileges!
     return verifyHash(attackMessage, lengthExtendedHash)
+    
+#Set 4:30
+#Implemented MD4 as per RFC at https://tools.ietf.org/html/rfc1320
+def md4Hash(message, overrideMessageSize = -1):
+    return md4Hash_intermediate(message, [0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476])
+
+'''Round 1.
+    Let [abcd k s] denote the operation
+    a = (a + F(b,c,d) + X[k]) <<< s. 
+    F(X,Y,Z) = XY v not(X) Z
+'''
+def __md4F(x, y, z):
+    return (x & y) | (~x & z)
+def __md4Round1(a, b, c, d, x, numShifts):
+    return rotateLeft((a + __md4F(b, c, d) + x) % 2**32, numShifts)
+
+'''Round 2.
+    Let [abcd k s] denote the operation
+    a = (a + G(b,c,d) + X[k] + 5A827999) <<< s.
+    G(X,Y,Z) = XY v XZ v YZ
+'''
+def __md4G(x, y, z):
+    return (x & y) | (x & z) | (y & z)
+def __md4Round2(a, b, c, d, x, numShifts):
+    return rotateLeft((a + __md4G(b, c, d) + x + 0x5A827999) % 2**32, numShifts)
+
+'''Round 3.
+    Let [abcd k s] denote the operation
+    a = (a + H(b,c,d) + X[k] + 6ED9EBA1) <<< s.
+    H(X,Y,Z) = X xor Y xor Z
+'''
+def __md4H(x, y, z):
+    return x ^ y ^ z
+def __md4Round3(a, b, c, d, x, numShifts):
+    return rotateLeft((a + __md4H(b, c, d) + x + 0x6ED9EBA1) % 2**32, numShifts)
+
+#No need for padding function, sha1 uses the same one. We call it MDPad()
+def md4Hash_intermediate(message, intermediateHash, overrideMessageSize = -1):
+    #Call MDPad, but make the length at the end be little endian
+    message = MDPad(message, overrideMessageSize, True)
+    BLOCK_SIZE = 16 * 4 #16-word block = 64 bytes
+    assert(len(message) % BLOCK_SIZE == 0)
+
+    #Iterate through each 16-word block (64 bytes)
+    for i in xrange(0, len(message), BLOCK_SIZE):
+        messageBlock = message[i:i+BLOCK_SIZE]
+
+        #Initialize X[0]-X[15] to be messageBlock[0]-messageBlock[15], little-endian
+        x = list(struct.unpack("<16I", messageBlock))
+
+        #Copy intermediateHash to be the hash additives
+        h = list(intermediateHash)
+
+        shift = [
+                [3, 7, 11, 19],
+                [3, 5, 9, 13],
+                [3, 9, 11, 15]
+            ]
+
+        #Round 1
+        for k in xrange(16):
+            index = (16-k) % 4
+            xIndex = k
+            h[index] = __md4Round1(h[index], h[(index+1)%4], h[(index+2)%4], h[(index+3)%4], x[xIndex], shift[0][k%4])
+
+        #Round 2
+        for k in xrange(16):
+            index = (16-k) % 4
+            xIndex = 4*(k%4) + k//4
+            h[index] = __md4Round2(h[index], h[(index+1)%4], h[(index+2)%4], h[(index+3)%4], x[xIndex], shift[1][k%4])
+        
+        #Round 3
+        seq = [0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15]
+        for k in xrange(16):
+            index = (16-k) % 4
+            xIndex = seq[k]
+            h[index] = __md4Round3(h[index], h[(index+1)%4], h[(index+2)%4], h[(index+3)%4], x[xIndex], shift[2][k%4])
+        
+        for k in xrange(4):
+            intermediateHash[k] = (intermediateHash[k] + h[k]) % 2**32
+
+    #Intermediate hash values are the final at the end. Pack them into a string, little-endian
+    out = "".join([struct.pack('<I', word) for word in intermediateHash])
+    return out

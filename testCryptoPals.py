@@ -228,34 +228,34 @@ class TestSet4(unittest.TestCase):
         plaintext = CryptoStu.crackCtrEdit(ciphertext)
         self.assertEqual(plaintext, secretText)
         
-    def test_challenge26_sha1pad(self):
+    def test_challenge28_MDPad(self):
         #Test padding function first
         #Test from the RFC
         message = "6162636465".decode('hex')
-        paddedMessage = CryptoStu.sha1Pad(message)
+        paddedMessage = CryptoStu.MDPad(message)
         self.assertEqual(paddedMessage.encode('hex'), "61626364658000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000028"
 )
         #9 bytes left, we can still use up this block, albeit with no 0's
         message = "1234567812345678123456781234567812345678123456781234567"
-        paddedMessage = CryptoStu.sha1Pad(message)
+        paddedMessage = CryptoStu.MDPad(message)
         self.assertEqual(len(paddedMessage), 64)
         self.assertEqual(int(paddedMessage[-8:].encode('hex'), 16), 55 * 8)
 
         #Only 8 bytes left, have to use the next block
         message = "12345678123456781234567812345678123456781234567812345678"
-        paddedMessage = CryptoStu.sha1Pad(message)
+        paddedMessage = CryptoStu.MDPad(message)
         self.assertEqual(len(paddedMessage), 128)
         self.assertEqual(int(paddedMessage[-8:].encode('hex'), 16), 56 * 8)
         
         #0 bytes left, make sure we do end up using the next block
         message = "1234567812345678123456781234567812345678123456781234567812345678"
-        paddedMessage = CryptoStu.sha1Pad(message)
+        paddedMessage = CryptoStu.MDPad(message)
         self.assertEqual(len(paddedMessage), 128)
         self.assertEqual(int(paddedMessage[-8:].encode('hex'), 16), 64 * 8)
 
-    def test_challenge26_sha1(self):
-        #Test circularShiftLeft function first
-        self.assertEqual(CryptoStu.circularShiftLeft(0xabcd0000, 16), 0x0000abcd)
+    def test_challenge28_sha1(self):
+        #Test rotateLeft function first
+        self.assertEqual(CryptoStu.rotateLeft(0xabcd0000, 16), 0x0000abcd)
         
         #Test my hash against Python's hashlib
         self.assertEqual(CryptoStu.sha1Hash(""), hashlib.sha1("").digest())
@@ -264,9 +264,18 @@ class TestSet4(unittest.TestCase):
 
         #No need to test the hmac function, it just is what it is
         
-    def test_challenge27(self):
+    def test_challenge29(self):
         self.assertTrue(CryptoStu.sha1LengthExtensionAttack())
 
+    def test_challenge30(self):
+        #This is a test suite from the MD4 RFC
+        self.assertEqual(CryptoStu.md4Hash("").encode('hex'), "31d6cfe0d16ae931b73c59d7e0c089c0")
+        self.assertEqual(CryptoStu.md4Hash("a").encode('hex'), "bde52cb31de33e46245e05fbdbd6fb24")
+        self.assertEqual(CryptoStu.md4Hash("abc").encode('hex'), "a448017aaf21d8525fc10ae87aa6729d")
+        self.assertEqual(CryptoStu.md4Hash("message digest").encode('hex'), "d9130a8164549fe818874806e1c7014b")
+        self.assertEqual(CryptoStu.md4Hash("abcdefghijklmnopqrstuvwxyz").encode('hex'), "d79e1c308aa5bbcdeea8ed63df412da9")
+        self.assertEqual(CryptoStu.md4Hash("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789").encode('hex'), "043f8582f241db351ce627e153e7f0e4")
+        self.assertEqual(CryptoStu.md4Hash("12345678901234567890123456789012345678901234567890123456789012345678901234567890").encode('hex'), "e33b4ddc9c38f2199c3e7b164fcc0536")
 
 if __name__ == '__main__':
     unittest.main()
