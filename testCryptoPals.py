@@ -277,5 +277,9 @@ class TestSet4(unittest.TestCase):
         self.assertEqual(CryptoStu.md4Hash("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789").encode('hex'), "043f8582f241db351ce627e153e7f0e4")
         self.assertEqual(CryptoStu.md4Hash("12345678901234567890123456789012345678901234567890123456789012345678901234567890").encode('hex'), "e33b4ddc9c38f2199c3e7b164fcc0536")
 
+        #Now test md4 length extension attack
+        self.assertTrue(CryptoStu.md4LengthExtensionAttack())
+
+        
 if __name__ == '__main__':
     unittest.main()

@@ -987,30 +987,30 @@ def sha1Hash_intermediate(message, intermediateHash, overrideMessageSize = -1):
     out = "".join([struct.pack('>I', word) for word in intermediateHash])
     return out
     
-def hmacSha1(key, message):
-    return sha1Hash(key + message)
+def hmac(hashFunc, key, message):
+    return hashFunc(key + message)
     
 #Set 4:29
 #Verifies that message hmac's to hashVal when using fixedKey
-def verifyHash(message, hashVal):
-    return hmacSha1(fixedKey, message) == hashVal
+def verifyHash(hashFunc, message, hashVal):
+    return hmac(hashFunc, fixedKey, message) == hashVal
 
 #Returns hash for the message we are allowed to know about
-def getKnownHash():
+def getKnownHash(hashFunc):
     message = "comment1=cooking%20MCs;userdata=foo;comment2=%20like%20a%20pound%20of%20bacon"
-    return hmacSha1(fixedKey, message)
+    return hmac(hashFunc, fixedKey, message)
 
 #Performs length extension attack to forge a message with ;admin=true in it, which has been
 #   hmac'ed by fixedKey
 def sha1LengthExtensionAttack():
     #Extract out each of the 5 words in the hash
-    knownHash = getKnownHash()
+    knownHash = getKnownHash(sha1Hash)
     wordLength = len(knownHash)/5
     intermediateHash = list(struct.unpack('>IIIII', knownHash))
 
     knownMessage = "comment1=cooking%20MCs;userdata=foo;comment2=%20like%20a%20pound%20of%20bacon"
     #Now, use length extension to add admin privileges and get the hash
-    lengthExtendedHash = sha1Hash_intermediate(";admin=true", intermediateHash, 0x458/8)
+    lengthExtendedHash = sha1Hash_intermediate(";admin=true", intermediateHash, len(MDPad(knownMessage) + ";admin=true"))
 
     #Guess that the key is size 16
     MDPaddedMessage = MDPad('\x00' * 16 + knownMessage)
@@ -1019,7 +1019,7 @@ def sha1LengthExtensionAttack():
     attackMessage = knownMessage + MDPaddedMessage[len(knownMessage)+16:] + ";admin=true"
 
     #Verify that we've forged the HMAC for attackMessage, which includes admin privileges!
-    return verifyHash(attackMessage, lengthExtendedHash)
+    return verifyHash(sha1Hash, attackMessage, lengthExtendedHash)
     
 #Set 4:30
 #Implemented MD4 as per RFC at https://tools.ietf.org/html/rfc1320
@@ -1104,3 +1104,25 @@ def md4Hash_intermediate(message, intermediateHash, overrideMessageSize = -1):
     #Intermediate hash values are the final at the end. Pack them into a string, little-endian
     out = "".join([struct.pack('<I', word) for word in intermediateHash])
     return out
+    
+    
+#Performs length extension attack to forge a message with ;admin=true in it, which has been
+#   hmac'ed by fixedKey
+def md4LengthExtensionAttack():
+    #Extract out each of the 5 words in the hash
+    knownHash = getKnownHash(md4Hash)
+    wordLength = len(knownHash)/4
+    intermediateHash = list(struct.unpack('<IIII', knownHash))
+
+    knownMessage = "comment1=cooking%20MCs;userdata=foo;comment2=%20like%20a%20pound%20of%20bacon"
+    #Now, use length extension to add admin privileges and get the hash
+    lengthExtendedHash = md4Hash_intermediate(";admin=true", intermediateHash, len(MDPad(knownMessage) + ";admin=true"))
+
+    #Guess that the key is size 16
+    MDPaddedMessage = MDPad('\x00' * 16 + knownMessage, -1, True)
+    
+    #Now concat knownMessage with pseudo-padding, then our attack
+    attackMessage = knownMessage + MDPaddedMessage[len(knownMessage)+16:] + ";admin=true"
+
+    #Verify that we've forged the HMAC for attackMessage, which includes admin privileges!
+    return verifyHash(md4Hash, attackMessage, lengthExtendedHash)
