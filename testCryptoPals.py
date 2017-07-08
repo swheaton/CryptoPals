@@ -281,9 +281,14 @@ class TestSet4(unittest.TestCase):
         self.assertTrue(CryptoStu.md4LengthExtensionAttack())
 
     @unittest.skip("Takes way too long, by design. 40 minutes or so")
+    #Uses wall time, so it might not work every time since a brief slow down due
+    #   to other processes on the machine can unfairly weight a particular byte
     def test_challenge31(self):
         self.assertTrue(CryptoStu.discoverHashByTimingLeak("attack, attack!"))
         
+    @unittest.skip("Takes way too long, by design. 40 minutes or so")
+    def test_challenge32(self):
+        self.assertTrue(CryptoStu.discoverHashByTimingLeakAvg("attack, attack!"))
         
 if __name__ == '__main__':
     unittest.main()

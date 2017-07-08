@@ -1133,16 +1133,16 @@ def md4LengthExtensionAttack():
 #   won't work with the unit test
 
 import time
-def insecure_compare(hash1, hash2):
+def insecure_compare(hash1, hash2, delay):
     for i in xrange(len(hash1)):
-        time.sleep(50.0 / 1000) #Sleep 50 ms
+        time.sleep(delay) #Sleep to fake a delay
         if not hash1[i] == hash2[i]:
             return False
     return True
 
-def verifyFileHash(file, signature):
+def verifyFileHash(file, signature, delay):
     hash = hmac(sha1Hash, fixedKey, file)
-    return insecure_compare(hash, signature)
+    return insecure_compare(hash, signature, delay)
     
 def discoverHashByTimingLeak(message):
     knownHash = ""
@@ -1156,11 +1156,42 @@ def discoverHashByTimingLeak(message):
             #Measure how long the call to verifyFileHash() takes. The longest time
             #   is likely the real byte in the hash
             startTime = time.time()
-            done = verifyFileHash(message, knownHash + chr(byte) + "\x00" * (19 - bytePos))
+            done = verifyFileHash(message, knownHash + chr(byte) + "\x00" * (19 - bytePos), 50.0 / 1000)
             endTime = time.time()
             if done or (endTime - startTime > maxTime):
                 maxTime = endTime - startTime
                 currByte = chr(byte)
         knownHash += currByte
 
-    return verifyFileHash(message, knownHash)
+    return verifyFileHash(message, knownHash, 50.0 / 1000)
+    
+#Set 4:32
+#Slightly-less-artificial timing leak
+#Going to use averages to complete this instead of just always using the
+#   highest time
+def discoverHashByTimingLeakAvg(message):
+    knownHash = ""
+
+    #Iteratively guess each byte in the hash
+    for bytePos in xrange(20):
+        maxTime = 0.0
+        currByte = '\x00'
+        #Go through each possible byte, using the previously known hash plus the byte.
+        times = [0 for i in xrange(256)]
+        for byte in xrange(256):
+            #Try it a bunch of times to get an average, so a fake one doesn't win
+            for i in xrange(10):
+                #Measure how long the call to verifyFileHash() takes. The longest time
+                #   is likely the real byte in the hash
+                startTime = time.time()
+                done = verifyFileHash(message, knownHash + chr(byte) + "\x00" * (19 - bytePos), 5.0 / 1000)
+                endTime = time.time()
+                times[byte] += (endTime - startTime)
+    
+                #Make sure this byte wins, because we actually cracked it
+                if done:
+                    times[byte] *= 2
+        maxIndex = np.argmax(times)
+        knownHash += chr(maxIndex)
+
+    return verifyFileHash(message, knownHash, 5.0 / 1000)
