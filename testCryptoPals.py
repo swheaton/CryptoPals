@@ -290,5 +290,9 @@ class TestSet4(unittest.TestCase):
     def test_challenge32(self):
         self.assertTrue(CryptoStu.discoverHashByTimingLeakAvg("attack, attack!"))
         
+class TestSet5(unittest.TestCase):
+    def test_challenge33(self):
+        self.assertTrue(CryptoStu.diffieHellmanKey())
+
 if __name__ == '__main__':
     unittest.main()
