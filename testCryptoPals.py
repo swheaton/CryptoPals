@@ -280,6 +280,10 @@ class TestSet4(unittest.TestCase):
         #Now test md4 length extension attack
         self.assertTrue(CryptoStu.md4LengthExtensionAttack())
 
+    @unittest.skip("Takes way too long, by design. 40 minutes or so")
+    def test_challenge31(self):
+        self.assertTrue(CryptoStu.discoverHashByTimingLeak("attack, attack!"))
+        
         
 if __name__ == '__main__':
     unittest.main()

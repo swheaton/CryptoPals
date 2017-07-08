@@ -1126,3 +1126,41 @@ def md4LengthExtensionAttack():
 
     #Verify that we've forged the HMAC for attackMessage, which includes admin privileges!
     return verifyHash(md4Hash, attackMessage, lengthExtendedHash)
+    
+#Set 4:31
+#Artificial timing leak to break HMAC
+#Sorry, not going to implement a server, because I don't want to. And it
+#   won't work with the unit test
+
+import time
+def insecure_compare(hash1, hash2):
+    for i in xrange(len(hash1)):
+        time.sleep(50.0 / 1000) #Sleep 50 ms
+        if not hash1[i] == hash2[i]:
+            return False
+    return True
+
+def verifyFileHash(file, signature):
+    hash = hmac(sha1Hash, fixedKey, file)
+    return insecure_compare(hash, signature)
+    
+def discoverHashByTimingLeak(message):
+    knownHash = ""
+
+    #Iteratively guess each byte in the hash
+    for bytePos in xrange(20):
+        maxTime = 0.0
+        currByte = '\x00'
+        #Go through each possible byte, using the previously known hash plus the byte.
+        for byte in xrange(256):
+            #Measure how long the call to verifyFileHash() takes. The longest time
+            #   is likely the real byte in the hash
+            startTime = time.time()
+            done = verifyFileHash(message, knownHash + chr(byte) + "\x00" * (19 - bytePos))
+            endTime = time.time()
+            if done or (endTime - startTime > maxTime):
+                maxTime = endTime - startTime
+                currByte = chr(byte)
+        knownHash += currByte
+
+    return verifyFileHash(message, knownHash)
