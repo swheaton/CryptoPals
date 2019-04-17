@@ -5,6 +5,9 @@ import CryptoStu
 
 class TestSet1(unittest.TestCase):
 
+    def setUp(self):
+        print "Test", self._testMethodName, "::"
+
     def test_challenge1(self):
         hexVal = "49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d"
         b64Val = "SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t"
@@ -12,6 +15,7 @@ class TestSet1(unittest.TestCase):
         self.assertEqual(CryptoStu.b64ToHex(b64Val), hexVal)
         
     def test_challenge2(self):
+
         #Hex XOR testing
         # same length test
         startStr = "1c0111001f010100061a024b53535009181c"
@@ -26,12 +30,14 @@ class TestSet1(unittest.TestCase):
         #TODO String XOR testing
         
     def test_challenge3(self):
+
         scoreText = CryptoStu.singleXorDecrypt("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736")
         self.assertEqual(scoreText.text, "Cooking MC's like a pound of bacon")
         self.assertEqual(scoreText.decodeByte, "X")
     
     @unittest.skip("this test takes too long")
     def test_challenge4(self):
+
         mostLikelyEncryptedString = CryptoStu.findSingleXorCipherInFile("files/p4.txt")
         self.assertEqual(mostLikelyEncryptedString.decodeByte, '5')
         self.assertEqual(mostLikelyEncryptedString.text, "Now that the party is jumping\n")
@@ -43,6 +49,7 @@ class TestSet1(unittest.TestCase):
         self.assertEqual(CryptoStu.repeatingKeyXor(encryptedText.decode('hex'), "ICE"), asciiText) #Decrypt
 
     def test_challenge6(self):
+
         self.assertEqual(CryptoStu.hammingDist("this is a test", "wokka wokka!!!"), 37)
         self.assertEqual(CryptoStu.guessKeySizeFile("files/p6.txt"), 29)
         solved = CryptoStu.solveVigenereFile("files/p6.txt")
@@ -53,18 +60,23 @@ class TestSet1(unittest.TestCase):
         #print solved[1] #Uncomment to print the whole decrypted text
         
     def test_challenge7(self):
+
         decryptedFile = CryptoStu.decryptAES_ECB_File("files/p7.txt", "YELLOW SUBMARINE")
         self.assertNotEqual(decryptedFile.find("Play that funky music white boy"), -1)
         self.assertNotEqual(decryptedFile.find("I'm back and I'm ringin' the bell"), -1)
         #print decryptedFile #Uncomment to print the whole decrypted text
 
     def test_challenge8(self):
+
         blah = 1
         ecbEncryptedCiphers = CryptoStu.findEcbEncryptedCipherFile("files/p8.txt")
         self.assertEqual(len(ecbEncryptedCiphers), 1)
         #print ecbEncryptedCiphers #Uncomment to print the ciphers in the file that are encrypted with ecb
 
 class TestSet2(unittest.TestCase):
+
+    def setUp(self):
+        print "Test", self._testMethodName, "::"
     
     def test_challenge9(self):
         #Border case
@@ -106,6 +118,7 @@ class TestSet2(unittest.TestCase):
         self.assertEqual(CryptoStu.decryptAES_CBC(CryptoStu.encryptAES_CBC(text, iv, key), iv, key), text)
         
     def test_challenge11(self):
+
         #Try it 100 times, make sure it works
         for i in xrange(0, 100):
             oracleResult = CryptoStu.determineAESMode(CryptoStu.randomEcbCbcOracle, 16)
@@ -145,6 +158,10 @@ class TestSet2(unittest.TestCase):
         
 
 class TestSet3(unittest.TestCase):
+
+    def setUp(self):
+        print "Test", self._testMethodName, "::"
+
     def test_challenge17(self):
         self.assertEqual(CryptoStu.cbcPaddingOracleAttack(1).decode('base64'),
             "000001With the bass kicked in and the Vega's are pumpin'")
@@ -222,6 +239,9 @@ class TestSet3(unittest.TestCase):
 
 import hashlib
 class TestSet4(unittest.TestCase):
+    def setUp(self):
+        print "Test", self._testMethodName, "::"
+
     def test_challenge25(self):
         secretText = "Hello, this is a test of a decent-sized stream. We will test cracking CTR mode of AES if we are allowed to edit!"
         ciphertext = CryptoStu.generateCtrCipherText(secretText)
@@ -267,6 +287,7 @@ class TestSet4(unittest.TestCase):
     def test_challenge29(self):
         self.assertTrue(CryptoStu.sha1LengthExtensionAttack())
 
+
     def test_challenge30(self):
         #This is a test suite from the MD4 RFC
         self.assertEqual(CryptoStu.md4Hash("").encode('hex'), "31d6cfe0d16ae931b73c59d7e0c089c0")
@@ -285,12 +306,15 @@ class TestSet4(unittest.TestCase):
     #   to other processes on the machine can unfairly weight a particular byte
     def test_challenge31(self):
         self.assertTrue(CryptoStu.discoverHashByTimingLeak("attack, attack!"))
-        
+
     @unittest.skip("Takes way too long, by design. 40 minutes or so")
     def test_challenge32(self):
         self.assertTrue(CryptoStu.discoverHashByTimingLeakAvg("attack, attack!"))
         
 class TestSet5(unittest.TestCase):
+    def setUp(self):
+        print "Test", self._testMethodName, "::"
+
     def test_challenge33(self):
         self.assertTrue(CryptoStu.diffieHellmanKey())
 
