@@ -40,7 +40,7 @@ This requires the PyCrypto python package. Either use easy_install, or pip insta
 - [x] 24. Create the MT19937 stream cipher and break it
 ## Set 4: Stream Crypto and Randomness
 - [x] 25. Break "random access read/write" AES CTR
-- [ ] 26. CTR bitflipping
+- [x] 26. CTR bitflipping
 - [ ] 27. Recover the key from CBC with IV=Key
 - [x] 28. Implement a SHA-1 keyed MAC
 - [x] 29. Break a SHA-1 keyed MAC using length extension

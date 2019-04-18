@@ -247,6 +247,9 @@ class TestSet4(unittest.TestCase):
         ciphertext = CryptoStu.generateCtrCipherText(secretText)
         plaintext = CryptoStu.crackCtrEdit(ciphertext)
         self.assertEqual(plaintext, secretText)
+
+    def test_challenge26(self):
+        self.assertTrue(CryptoStu.decryptAndConfirmAdmin_ctr(CryptoStu.ctrBitFlip()))
         
     def test_challenge28_MDPad(self):
         #Test padding function first

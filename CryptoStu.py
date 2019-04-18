@@ -894,6 +894,38 @@ def crackCtrEdit(ciphertext):
     return editCtrCiphertext(ciphertext, 0, ciphertext)
     
 #Set 4:26 TODO
+# Encrypt user data, with some stuff prepended and appended
+def encryptUserData_ctr(data):
+    prefix = 'comment1=cooking%20MCs;userdata='
+    suffix = ';comment2=%20like%2-a%20pound%20of%20bacon'
+
+    # quote out ;and = characters
+    data = data.replace(';', '%3B').replace('=', '%3D')
+    message = prefix + data + suffix
+    return AES_CTR(message, fixedKey, fixedNonce)
+
+
+# Decrypts ciphertext, and returns true if the key value pair admin=true exists
+#   in the decrypted data. It is not possible to get this just from encryptUserData,
+#   but if we break the crypto we can!
+def decryptAndConfirmAdmin_ctr(ciphertext):
+    decrypted = AES_CTR(ciphertext, fixedKey, fixedNonce)
+    return decrypted.find(';admin=true;') != -1
+
+
+def ctrBitFlip():
+    # The prefix is conveniently 32 bytes. So if we send in 16 0's as userData, block 3
+    #   will contain C3 ^ 0 = C3.
+    test = encryptUserData_ctr('\x00' * 16)
+    myBlock = test[32:48]
+
+
+    # Now that we have C3, we can xor it with whatever we want and inject it back into the ciphertext.
+    myBlock = xor(myBlock, 'user;admin=true;')
+
+    craftedMessage = test[0:32] + myBlock + test[48:]
+    return craftedMessage
+
 
 #Set 4:27 TODO
 
