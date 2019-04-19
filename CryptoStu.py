@@ -551,20 +551,24 @@ def checkAndStripPadding(message):
     if padByte != '\x00' and message[len(message) - padConvert:] == padByte * padConvert:
         message = message[0:len(message) - padConvert]
     else:
+
         raise AssertionError
     return message
 
 #Set 2:16
 fixedIv = urandom(16)
 #Encrypt user data, with some stuff prepended and appended
-def encryptUserData(data):
+def encryptUserData(data, keyIvSame = None):
+    theIv = fixedIv
+    if keyIvSame != None:
+        theIv = fixedKey
     prefix = 'comment1=cooking%20MCs;userdata='
     suffix = ';comment2=%20like%2-a%20pound%20of%20bacon'
 
     #quote out ;and = characters
     data = data.replace(';','%3B').replace('=','%3D')
     message = prefix + data + suffix
-    return encryptAES_CBC(message,fixedIv,fixedKey)
+    return encryptAES_CBC(message,theIv,fixedKey)
 
 #Decrypts ciphertext, and returns true if the key value pair admin=true exists
 #   in the decrypted data. It is not possible to get this just from encryptUserData,
@@ -893,7 +897,7 @@ def editCtrCiphertext(ciphertext, offset, newText):
 def crackCtrEdit(ciphertext):
     return editCtrCiphertext(ciphertext, 0, ciphertext)
     
-#Set 4:26 TODO
+#Set 4:26
 # Encrypt user data, with some stuff prepended and appended
 def encryptUserData_ctr(data):
     prefix = 'comment1=cooking%20MCs;userdata='
@@ -927,7 +931,26 @@ def ctrBitFlip():
     return craftedMessage
 
 
-#Set 4:27 TODO
+#Set 4:27
+# Return decrypted plaintext only if there are unnatural ASCII characters here
+def decryptAndCheckAscii(ciphertext):
+    plaintext = decryptAES_CBC(ciphertext, fixedKey, fixedKey)
+    if ( all(ord(c) < 128 for c in plaintext)):
+        return ""
+    else:
+        return plaintext
+
+# Same key as IV means we use
+# P1 P2 P3 gives us C1 C2 C3
+# We give back C1 0 C1, and they give back "plaintext" of P1 JUNK (P1 ^ Key)
+def crackSameKeyIvCBC(ciphertext):
+    crafted = ciphertext[:16] + ("\x00" * 16) + ciphertext[:16] + ciphertext[32:]
+    specialPlaintext = decryptAndCheckAscii(crafted)
+    if len(specialPlaintext) == 0:
+        print "WE FAILED"
+    crackedKey = xor(specialPlaintext[:16], specialPlaintext[32:48])
+    return crackedKey
+
 
 #Set 4:28
 #Implemented sha1 hash as per RFC at https://tools.ietf.org/html/rfc3174

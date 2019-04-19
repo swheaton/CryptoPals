@@ -250,6 +250,12 @@ class TestSet4(unittest.TestCase):
 
     def test_challenge26(self):
         self.assertTrue(CryptoStu.decryptAndConfirmAdmin_ctr(CryptoStu.ctrBitFlip()))
+
+    def test_challenge27(self):
+        ciphertext = CryptoStu.encryptUserData("A"*5, True)
+        guessedKey = CryptoStu.crackSameKeyIvCBC(ciphertext)
+
+        self.assertEqual(guessedKey, CryptoStu.fixedKey)
         
     def test_challenge28_MDPad(self):
         #Test padding function first

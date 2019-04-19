@@ -41,7 +41,7 @@ This requires the PyCrypto python package. Either use easy_install, or pip insta
 ## Set 4: Stream Crypto and Randomness
 - [x] 25. Break "random access read/write" AES CTR
 - [x] 26. CTR bitflipping
-- [ ] 27. Recover the key from CBC with IV=Key
+- [x] 27. Recover the key from CBC with IV=Key
 - [x] 28. Implement a SHA-1 keyed MAC
 - [x] 29. Break a SHA-1 keyed MAC using length extension
 - [x] 30. Break an MD4 keyed MAC using length extension
