@@ -1269,3 +1269,111 @@ def diffieHellmanKey():
     sessionKey1 = pow(B, a, p)
     sessionKey2 = pow(A, b, p)
     return sessionKey1 == sessionKey2
+
+#Set 5:34
+#MITM key-fixing attack on Diffie-Hellman with parameter injection
+
+# Base class of a network actor that implements Diffie Hellman, creates sessions keys, encrypts/decrypts stuff, etc.
+class NetworkActor:
+    privateKey = 0
+    sessionKey = ""
+
+    def generatePrivateKey(self, p, g):
+        # SystemRandom() uses urandom() under the hood, so it is secure
+        secureRandGen = SystemRandom()
+        # Generate random a,b in [0, p)
+        self.privateKey = secureRandGen.randint(0, p - 1)
+
+    def generatePublicKey(self, p, g):
+        return pow(g, self.privateKey, p)
+
+    def generateSessionKey(self, publicKey, p):
+        self.sessionKey = sha1Hash(str(pow(publicKey, self.privateKey, p)))[0:16]
+
+
+    def encryptMessage(self, message):
+        localIv = urandom(16)
+        encrypted = encryptAES_CBC(message, localIv, self.sessionKey) + localIv
+        return encrypted
+
+    def decryptMessage(self, encrypted):
+        encryptedLen = len(encrypted)
+        localIv = encrypted[encryptedLen-16:]
+        decrypted = decryptAES_CBC(encrypted[0:encryptedLen-16], localIv, self.sessionKey)
+        return decrypted
+
+# Alice is initiator
+class Alice(NetworkActor):
+    p = ""
+    def initiate(self):
+        self.p = int("ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec6f44c42e9a637ed6b0bff5cb6f406b7edee386bfb5a899fa5ae9f24117c4b1fe649286651ece45b3dc2007cb8a163bf0598da48361c55d39a69163fa8fd24cf5f83655d23dca3ad961c62f356208552bb9ed529077096966d670c354e4abc9804f1746c08ca237327ffffffffffffffff",16)
+        g = 2
+        self.generatePrivateKey(self.p, g)
+        A = self.generatePublicKey(self.p, g)
+        return self.p, g, A
+
+    def ackReceive(self, B):
+        self.generateSessionKey(B, self.p)
+
+# Bob is receiver
+class Bob(NetworkActor):
+    def ackInitiate(self, p, g, A):
+        self.generatePrivateKey(p, g)
+        B = self.generatePublicKey(p, g)
+        self.generateSessionKey(A, p)
+        return B
+
+# Base class of managing simulated network passed between alice and bob
+class NetworkManager():
+    def __init__(self):
+        self.alice = Alice()
+        self.bob = Bob()
+
+    def negotiateKeys(self):
+        p,g,A = self.alice.initiate()
+        B = self.bob.ackInitiate(p,g,A)
+        self.alice.ackReceive(B)
+
+    def aliceEncrypt(self, message):
+        return self.alice.encryptMessage(message)
+
+    def bobDecrypt(self, crypt):
+        return self.bob.decryptMessage(crypt)
+
+    def aliceDecrypt(self, message):
+        return self.alice.decryptMessage(message)
+
+    def bobEncrypt(self, crypt):
+        return self.bob.encryptMessage(crypt)
+
+# MITM attacker that injects p as the value of the other actor's public key.
+#  Then the person does (p ^ privKey % p) which is always 0, so the session key is sha1(0)
+class ManInTheMiddleNetworkManager(NetworkManager, NetworkActor):
+    stolenMessage = ""
+    def negotiateKeys(self):
+        p,g,A = self.alice.initiate()
+        B = self.bob.ackInitiate(p, g, p)
+        self.alice.ackReceive(p)
+        self.sessionKey = sha1Hash("0")[0:16]
+
+    def mitmDecrypt(self, crypt):
+        return self.decryptMessage(crypt)
+
+    def aliceEncrypt(self, message):
+        return self.alice.encryptMessage(message)
+
+    def bobDecrypt(self, crypt):
+        self.stolenMessage = self.mitmDecrypt(crypt)
+        return self.bob.decryptMessage(crypt)
+
+    def aliceDecrypt(self, crypt):
+        self.stolenMessage = self.mitmDecrypt(crypt)
+        return self.alice.decryptMessage(crypt)
+
+    def bobEncrypt(self, message):
+        return self.bob.encryptMessage(message)
+
+    def getStolenMessage(self):
+        return self.stolenMessage
+
+# Set 5:35 DH MITM with malicious 'g' parameters

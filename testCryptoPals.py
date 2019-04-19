@@ -327,5 +327,36 @@ class TestSet5(unittest.TestCase):
     def test_challenge33(self):
         self.assertTrue(CryptoStu.diffieHellmanKey())
 
+    def test_challenge34_dhencryption(self):
+        message = "Hello!, This is a super secret message only for your eyes and DEFINITELY not a MITM attacker's!"
+
+        networkMgr = CryptoStu.NetworkManager()
+        networkMgr.negotiateKeys()
+
+        encrypted = networkMgr.aliceEncrypt(message)
+        newMessage = networkMgr.bobDecrypt(encrypted)
+        self.assertEqual(message, newMessage)
+        encrypted2 = networkMgr.bobEncrypt(newMessage)
+        newMessage2 = networkMgr.aliceDecrypt(encrypted2)
+        self.assertEqual(newMessage2, message)
+
+    def test_challenge34_mitm(self):
+        networkMgr = CryptoStu.ManInTheMiddleNetworkManager()
+        networkMgr.negotiateKeys()
+
+        message = "Hello!, This is a super secret message only for your eyes and DEFINITELY not a MITM attacker's!"
+
+        encrypted = networkMgr.aliceEncrypt(message)
+        newMessage = networkMgr.bobDecrypt(encrypted)
+        self.assertEqual(message, newMessage)
+        #Now make sure MITM stole the message too.
+        self.assertEqual(networkMgr.getStolenMessage(), message)
+        encrypted2 = networkMgr.bobEncrypt(newMessage)
+        newMessage2 = networkMgr.aliceDecrypt(encrypted2)
+        self.assertEqual(newMessage2, message)
+        self.assertEqual(networkMgr.getStolenMessage(), newMessage2)
+
+
+
 if __name__ == '__main__':
     unittest.main()

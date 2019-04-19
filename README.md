@@ -49,7 +49,7 @@ This requires the PyCrypto python package. Either use easy_install, or pip insta
 - [x] 32. Break HMAC-SHA1 with a slightly less artificial timing leak
 # Set 5: Diffie-Hellman and Friends
 - [x] 33. Implement Diffie-Hellman
-- [ ] 34. Implement a MITM key-fixing attack on Diffie-Hellman with parameter injection
+- [x] 34. Implement a MITM key-fixing attack on Diffie-Hellman with parameter injection
 - [ ] 35. Implement DH with negotiated groups, and break with malicious "g" parameters
 - [ ] 36. Implement Secure Remote Password (SRP)
 - [ ] 37. Break SRP with a zero key
