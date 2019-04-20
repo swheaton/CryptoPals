@@ -1277,6 +1277,7 @@ def diffieHellmanKey():
 class NetworkActor:
     privateKey = 0
     sessionKey = ""
+    p = 0
 
     def generatePrivateKey(self, p, g):
         # SystemRandom() uses urandom() under the hood, so it is secure
@@ -1289,7 +1290,6 @@ class NetworkActor:
 
     def generateSessionKey(self, publicKey, p):
         self.sessionKey = sha1Hash(str(pow(publicKey, self.privateKey, p)))[0:16]
-
 
     def encryptMessage(self, message):
         localIv = urandom(16)
@@ -1304,7 +1304,7 @@ class NetworkActor:
 
 # Alice is initiator
 class Alice(NetworkActor):
-    p = ""
+    # For chall 34
     def initiate(self):
         self.p = int("ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec6f44c42e9a637ed6b0bff5cb6f406b7edee386bfb5a899fa5ae9f24117c4b1fe649286651ece45b3dc2007cb8a163bf0598da48361c55d39a69163fa8fd24cf5f83655d23dca3ad961c62f356208552bb9ed529077096966d670c354e4abc9804f1746c08ca237327ffffffffffffffff",16)
         g = 2
@@ -1315,13 +1315,37 @@ class Alice(NetworkActor):
     def ackReceive(self, B):
         self.generateSessionKey(B, self.p)
 
+    # For chall 35
+    def initiateNegotiatedGroups(self):
+        self.p = int("ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec6f44c42e9a637ed6b0bff5cb6f406b7edee386bfb5a899fa5ae9f24117c4b1fe649286651ece45b3dc2007cb8a163bf0598da48361c55d39a69163fa8fd24cf5f83655d23dca3ad961c62f356208552bb9ed529077096966d670c354e4abc9804f1746c08ca237327ffffffffffffffff",16)
+        g = 2
+        return self.p, g
+
+    def ackG(self, p, g, B):
+        self.p = p
+        self.generatePrivateKey(self.p, g)
+        A = self.generatePublicKey(self.p, g)
+        self.generateSessionKey(B, self.p)
+        return A
+
 # Bob is receiver
 class Bob(NetworkActor):
+    # For chall 34
     def ackInitiate(self, p, g, A):
         self.generatePrivateKey(p, g)
         B = self.generatePublicKey(p, g)
         self.generateSessionKey(A, p)
         return B
+
+    # For chall 35
+    def ackInitiateNegotiatedGroups(self, p, g):
+        self.p = p
+        self.generatePrivateKey(self.p, g)
+        B = self.generatePublicKey(self.p, g)
+        return self.p, g, B
+
+    def ackReceive(self, A):
+        self.generateSessionKey(A, self.p)
 
 # Base class of managing simulated network passed between alice and bob
 class NetworkManager():
@@ -1357,7 +1381,11 @@ class ManInTheMiddleNetworkManager(NetworkManager, NetworkActor):
         self.sessionKey = sha1Hash("0")[0:16]
 
     def mitmDecrypt(self, crypt):
-        return self.decryptMessage(crypt)
+        try:
+            blah= self.decryptMessage(crypt)
+        except:
+            print "***", len(crypt), "===", crypt.encode('hex')
+        return blah
 
     def aliceEncrypt(self, message):
         return self.alice.encryptMessage(message)
@@ -1377,3 +1405,23 @@ class ManInTheMiddleNetworkManager(NetworkManager, NetworkActor):
         return self.stolenMessage
 
 # Set 5:35 DH MITM with malicious 'g' parameters
+
+class MitmGParameter(ManInTheMiddleNetworkManager):
+    def negotiateKeys(self, version):
+        p,g = self.alice.initiateNegotiatedGroups()
+
+        # Each case of g parameter manipulation, just change session key to work.
+        if version == "1":
+            g = 1
+            self.sessionKey = sha1Hash("1")[0:16]
+        elif version == "p":
+            g = p
+            self.sessionKey = sha1Hash("0")[0:16]
+        elif version == "p-1":
+            g = p - 1
+            self.sessionKey = sha1Hash("1")[0:16]
+
+        # Complete key negotiation and we know what the session key must be.
+        p, g, B = self.bob.ackInitiateNegotiatedGroups(p, g)
+        A = self.alice.ackG(p, g, B)
+        self.bob.ackReceive(A)
