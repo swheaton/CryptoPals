@@ -1299,7 +1299,7 @@ class NetworkActor:
     def decryptMessage(self, encrypted):
         encryptedLen = len(encrypted)
         localIv = encrypted[encryptedLen-16:]
-        decrypted = decryptAES_CBC(encrypted[0:encryptedLen-16], localIv, self.sessionKey)
+        decrypted = decryptAES_CBC(encrypted[:encryptedLen-16], localIv, self.sessionKey)
         return decrypted
 
 # Alice is initiator
@@ -1364,11 +1364,11 @@ class NetworkManager():
     def bobDecrypt(self, crypt):
         return self.bob.decryptMessage(crypt)
 
-    def aliceDecrypt(self, message):
-        return self.alice.decryptMessage(message)
+    def aliceDecrypt(self, crypt):
+        return self.alice.decryptMessage(crypt)
 
-    def bobEncrypt(self, crypt):
-        return self.bob.encryptMessage(crypt)
+    def bobEncrypt(self, message):
+        return self.bob.encryptMessage(message)
 
 # MITM attacker that injects p as the value of the other actor's public key.
 #  Then the person does (p ^ privKey % p) which is always 0, so the session key is sha1(0)
@@ -1381,21 +1381,27 @@ class ManInTheMiddleNetworkManager(NetworkManager, NetworkActor):
         self.sessionKey = sha1Hash("0")[0:16]
 
     def mitmDecrypt(self, crypt):
-        try:
-            blah= self.decryptMessage(crypt)
-        except:
-            print "***", len(crypt), "===", crypt.encode('hex')
-        return blah
+        return self.decryptMessage(crypt)
 
     def aliceEncrypt(self, message):
         return self.alice.encryptMessage(message)
 
     def bobDecrypt(self, crypt):
-        self.stolenMessage = self.mitmDecrypt(crypt)
+        try:
+            self.stolenMessage = self.mitmDecrypt(crypt)
+        except:
+            self.sessionKey = sha1Hash(str(self.p-1))[0:16]
+            self.stolenMessage = self.mitmDecrypt(crypt)
         return self.bob.decryptMessage(crypt)
 
     def aliceDecrypt(self, crypt):
-        self.stolenMessage = self.mitmDecrypt(crypt)
+        # Sometimes if we can't decrypt then the session key must be
+        try:
+            self.stolenMessage = self.mitmDecrypt(crypt)
+        except:
+            self.sessionKey = sha1Hash(str(self.p-1))[0:16]
+
+            self.stolenMessage = self.mitmDecrypt(crypt)
         return self.alice.decryptMessage(crypt)
 
     def bobEncrypt(self, message):
@@ -1409,6 +1415,7 @@ class ManInTheMiddleNetworkManager(NetworkManager, NetworkActor):
 class MitmGParameter(ManInTheMiddleNetworkManager):
     def negotiateKeys(self, version):
         p,g = self.alice.initiateNegotiatedGroups()
+        self.p = p
 
         # Each case of g parameter manipulation, just change session key to work.
         if version == "1":

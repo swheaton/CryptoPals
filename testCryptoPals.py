@@ -361,13 +361,10 @@ class TestSet5(unittest.TestCase):
 
         networkMgr = CryptoStu.MitmGParameter()
 
-#didnt decrypt work with p-1
-# 35e2b3e303833f218b6f612f5ac73f2b316e3696cf75c3a7bc18ea9050394c7e1ffbb091e5bf35361ff5b17f71ea21250ce3b0c92dfddfe0ecdea87f2aa36d7710894feaede646559b372189d1edc8628a660d51d354c585fb4803b12590da0a3c61f111ac43353855b23778d144c764
         modes = ["1", "p", "p-1"]
 
         # g = p
         for mode in modes:
-            print mode
             networkMgr.negotiateKeys(mode)
 
             encrypted = networkMgr.aliceEncrypt(message)
@@ -379,6 +376,8 @@ class TestSet5(unittest.TestCase):
             newMessage2 = networkMgr.aliceDecrypt(encrypted2)
             self.assertEqual(newMessage2, message)
             self.assertEqual(networkMgr.getStolenMessage(), newMessage2)
+
+
 
 
 if __name__ == '__main__':
